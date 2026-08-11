@@ -47,9 +47,10 @@ Typical discovery hints from the reference client:
 
 - **GATT UART:** service `7E400001-B5A3-F393-E0A9-E50E24DCCA9D`  
   write `…0002` · notify `…0003`
-- **Frame:** `CD \| len \| 25 01 \| module \| bodyLen \| cmd \| payload` (big-endian)
-- **Modules:** `0x01` file transfer · `0x02` media · `0x03` system info
-- **Upload:** allocate media ID → `TRANSFER_START` → 200-byte `FILE_DATA` chunks → CRC32 → verify
+- **JieLi OTA:** service `0000AE00-…` · write `AE01` · notify `AE02`
+- **Frames:** `0xCD` start — Baji uses product `0x25`; FitPro dial uses modules `0x1F` / `0x20`
+- **Baji upload:** media ID → `TRANSFER_START` → ~200 B chunks → CRC32 → verify
+- **FitPro push (BJ-1):** dial31 start → data + byte-sum → finish ([dial-upload](docs/protocol/dial-upload.md))
 
 Full write-up: [docs/README.md](docs/README.md) · cheat sheet: [docs/BLE_PROTOCOL.md](docs/BLE_PROTOCOL.md)
 
@@ -63,11 +64,31 @@ Chrome / Edge only. Prefer the hosted GitHub Pages build (HTTPS is required for 
 
 ### Features
 
-- Connect badge (filtered) or any BLE device
-- Device info + battery
-- Push image (crop to dial size, JPEG, chunked Baji transfer)
-- Media ID allocate / list / delete
-- Activity / wire log
+The manager UI has two tabs: **Manager** (day-to-day) and **Advanced** (OTA / probes — same jobs as `tools/send-ota.sh`).
+
+#### Manager tab
+
+| Feature | Description |
+|---------|-------------|
+| Multi-badge connect | Filtered picker (`BJ*` / `DG*` / `_V*` / mfg `0xAA01`) or any device; add / switch active / disconnect one or all |
+| Device identity | GAP name + GATT DIS (`0x180A`) model / FW / HW / SW / mfg + battery; optional Baji storage |
+| Glance strip | Active badge name, model, firmware, battery, hardware, free storage |
+| Push image | Cover-crop to dial (default 360×360), round mask, JPEG ~q50 → **Baji** file transfer or **FitPro dial31** (auto) |
+| Push to all | Same image to every connected badge (sequential) |
+| Media library | Allocate / list / delete media IDs (Baji only; skipped on FitPro badges like BJ-1) |
+| Activity log | TX/RX and status |
+
+#### Advanced tab
+
+| Feature | Description |
+|---------|-------------|
+| OTA package | CDN presets **BJ-1** / **DG01**, local `.zip` / `.ufw`, tomato catalog probe (CORS may block — presets still work) |
+| GATT / AE00 probe | List services on the active connection, or picker focused on JieLi OTA |
+| BLE OTA flash | JieLi RCSP over `AE01`/`AE02` (openwearota-compatible); risk confirm required — wrong image can brick |
+| Protocol probes | Legacy `0x1A` handshake, pair frame, opt-in dial-info `0x20` (can drop BJ-1) |
+| USB / risks | Chipkey `$B165` forced-update notes + security findings (F1–F8) |
+
+More UI detail: [docs/web-console.md](docs/web-console.md) · risks: [docs/protocol/security.md](docs/protocol/security.md)
 
 ### Run locally
 
@@ -130,9 +151,11 @@ Details: [tools/README.md](tools/README.md) · [Firmware OTA](docs/protocol/ota-
 | [Protocol overview](docs/protocol/overview.md) | Architecture |
 | [GATT](docs/protocol/gatt.md) | UUIDs / TX / RX |
 | [Framing](docs/protocol/framing.md) | Packet layout |
+| [Web client](docs/web-console.md) | Manager + Advanced tab feature guide |
 | [File transfer](docs/protocol/file-transfer.md) | Chunked upload + CRC32 |
+| [Dial upload](docs/protocol/dial-upload.md) | FitPro dial31 picture push (BJ-1) |
 | [Media](docs/protocol/media.md) | IDs, list, delete |
-| [Firmware OTA](docs/protocol/ota-firmware.md) | JieLi OTA catalog + zip URLs |
+| [Firmware OTA](docs/protocol/ota-firmware.md) | JieLi OTA catalog + zip URLs + send-ota |
 | [Security research](docs/protocol/security.md) | OTA / UART / CDN risk findings |
 | [Firmware hardware](docs/protocol/firmware-hw.md) | AC707N SoC / peripherals from UFW |
 | [Commands](docs/protocol/commands.md) | Opcode tables |

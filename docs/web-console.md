@@ -81,6 +81,18 @@ Web Bluetooth can keep **several GATT connections** at once. Each **Add badge** 
 4. **Baji path:** optional `allocateMediaId` → file-transfer chunks (~200 B)  
 5. **FitPro path (BJ-1):** dial31 start → data (seq + byte-sum) → finish; status `1000+n` / `2`  
 
+### Advanced tab workflow (OTA)
+
+Mirrors [`tools/send-ota.sh`](../tools/send-ota.sh):
+
+1. Open **Advanced** → choose preset **BJ-1** or **DG01** → **Prepare preset** (or pick a local `.zip` / `.ufw`)
+2. Connect the badge (Manager hero) or use **Picker → probe AE00**
+3. Confirm **JieLi OTA AE00: YES** in the probe output
+4. Check the brick-risk box → **Flash UFW to active** (or **Picker + flash**)
+5. Prefer matching OEM cut; see [Security](protocol/security.md) and [Firmware OTA](protocol/ota-firmware.md)
+
+Tomato **Probe catalog** may fail in the browser (no CORS); CDN presets and local files do not need the catalog.
+
 ---
 
 ## Debug console (`src/debug-console/`)

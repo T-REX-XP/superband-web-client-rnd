@@ -15,7 +15,10 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 ### Added
 
 - Firmware OTA investigation notes (`docs/protocol/ota-firmware.md`)
-- `tools/` helpers: `download-firmware.sh`, `unpack-apk.sh`, `probe-ota.mjs`
+- Security research findings (`docs/protocol/security.md`)
+- `tools/` helpers: `download-firmware.sh`, `send-ota.sh`, `send-ota-ble.py`, `analyze-firmware.sh`, `unpack-apk.sh`, `probe-ota.mjs`
+- Manager **Advanced** tab: OTA package prepare (CDN presets / local ufw), GATT·AE00 probe, JieLi RCSP BLE flash, legacy probes, USB/risk notes
+- FitPro dial31 image push for BJ-1 (skip Baji media / dial-info probes that drop the link)
 - Manager: GitHub / Docs / Issues links; device glance strip (DIS model/FW/HW + battery)
 - GATT Device Information reads so FW/model show when Baji `DEVICE_INFO` is absent (e.g. BJ-1)
 

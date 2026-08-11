@@ -7,9 +7,9 @@
 ├── .github/workflows/   # Pages deploy + validate (Bun)
 ├── artifacts/           # Local APKs (gitignored)
 ├── docs/                # This documentation
-├── tools/               # Firmware download + APK unpack scripts
+├── tools/               # Firmware download, send-ota, APK unpack
 ├── src/                 # All application sources
-│   ├── …                # Primary Web Bluetooth manager (Bun)
+│   ├── …                # Manager + Advanced tabs (Bun / Web Bluetooth)
 │   └── debug-console/   # Low-level protocol debug console
 └── research/            # unpacked/ + firmware/ (gitignored)
 ```
@@ -38,10 +38,11 @@ Open [http://localhost:8787](http://localhost:8787).
 3. Confirm the hero glance strip: name, model, firmware, battery
 4. Optionally **Add badge** / **Add another** to connect more devices (each opens the picker)
 5. Click a chip in **Connected badges** to choose the active target
-6. Choose an image → checklist green → **Push to active** (or **Push to all**)
-7. Optionally refresh the media library for the active badge
+6. On the **Manager** tab: choose an image → checklist green → **Push to active** (or **Push to all**)
+7. Optionally refresh the media library (Baji badges only)
+8. On the **Advanced** tab (optional): prepare an OTA package (BJ-1 / DG01 preset or local `.ufw`), probe GATT / `AE00`, or flash JieLi OTA — see warnings in [Security](protocol/security.md)
 
-Repo / docs links are in the hero and footer. See [Web client](web-console.md) and [File transfer](protocol/file-transfer.md).
+Repo / docs links are in the hero and footer. Feature tables: [Web client](web-console.md).
 
 ### Debug console (optional)
 
@@ -68,7 +69,7 @@ Key packages from the reference client:
 
 See [RnD investigation](rnd-investigation.md) · [tools/README.md](../tools/README.md).
 
-## Download firmware (optional)
+## Download / send firmware (optional)
 
 ```bash
 ./tools/download-firmware.sh --preset bj1    # GAP name "BJ-1"
@@ -76,9 +77,14 @@ See [RnD investigation](rnd-investigation.md) · [tools/README.md](../tools/READ
 ./tools/download-firmware.sh --preset all
 # Or probe by DIS soft-version catalog key:
 ./tools/download-firmware.sh --version V32172 --name BJ-1
+
+# CLI OTA (BlueZ + openwearota venv) — same presets as the Advanced tab
+./tools/send-ota.sh --preset bj1 --prepare
+./tools/send-ota.sh --scan
+./tools/send-ota.sh --preset bj1 --ble --address AA:BB:CC:DD:EE:FF
 ```
 
-Zips land in `research/firmware/` (gitignored). See [Firmware OTA](protocol/ota-firmware.md).
+Zips land in `research/firmware/` (gitignored). Browser path: manager **Advanced** tab. See [Firmware OTA](protocol/ota-firmware.md) · [tools/README.md](../tools/README.md).
 
 ## Browser notes
 
