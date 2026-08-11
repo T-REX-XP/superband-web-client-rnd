@@ -168,7 +168,15 @@ function renderSnapshot(snap) {
     if (el) el.textContent = val;
   }
 
-  if (s.mediaId != null) {
+  if (s.protocolMode === 'fitpro') {
+    $('#mediaIdPill').textContent = 'FitPro dial31';
+    if (s.dialWidth && s.dialHeight) {
+      const w = $('#dialW');
+      const h = $('#dialH');
+      if (w && Number(w.value) !== s.dialWidth) w.value = String(s.dialWidth);
+      if (h && Number(h.value) !== s.dialHeight) h.value = String(s.dialHeight);
+    }
+  } else if (s.mediaId != null) {
     $('#mediaIdPill').textContent = `Media ID ${s.mediaId}`;
   } else if (!s.connected) {
     $('#mediaIdPill').textContent = 'Media ID —';
@@ -306,16 +314,23 @@ async function pushImage() {
         bar.style.width = `${pct}%`;
       },
     });
+    const via = result.path === 'fitpro-dial31' ? 'dial31' : 'baji';
     toast(
-      result.verified === false ? 'Uploaded (verify unclear)' : `Pushed to ${client.name || 'badge'}`,
+      result.verified === false
+        ? 'Uploaded (verify unclear)'
+        : `Pushed to ${client.name || 'badge'} (${via})`,
       'ok',
     );
     log({
-      msg: `Push complete → ${client.name || result.sessionId} mediaId=${result.mediaId} crc=0x${result.checksum.toString(16)}`,
+      msg: `Push complete → ${client.name || result.sessionId} via=${via} id=${result.mediaId} sum=0x${Number(result.checksum).toString(16)}`,
       level: 'ok',
     });
-    $('#mediaIdPill').textContent = `Media ID ${result.mediaId}`;
-    client.requestMediaList().catch(() => {});
+    if (via === 'baji') {
+      $('#mediaIdPill').textContent = `Media ID ${result.mediaId}`;
+      client.requestMediaList().catch(() => {});
+    } else {
+      $('#mediaIdPill').textContent = 'FitPro dial31';
+    }
   } catch (e) {
     toast(e.message, 'err');
     log({ msg: e.message, level: 'err' });

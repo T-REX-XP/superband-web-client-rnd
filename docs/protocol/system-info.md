@@ -37,7 +37,7 @@ u32 featuresLen      | features UTF-8
 
 ## Web console
 
-The manager auto-requests device info after connect. Some badges (e.g. GAP name **`BJ-1`**) only return a legacy `0xDC` ack to the pair frame and never emit `DEVICE_INFO_RESPONSE`; the client logs a timeout and stays usable for media/file commands. Read firmware revision from DIS `0x2A26` when Baji info is missing.
+The manager auto-requests device info after connect. Some badges (e.g. GAP name **`BJ-1`**) only return a legacy `0xDC` ack to the pair frame and never emit `DEVICE_INFO_RESPONSE`. The client then switches to **FitPro dial31** mode: it skips Baji `MEDIA_*` probes (those disconnect BJ-1) and pushes images via watch-theme upload — see [Dial upload](dial-upload.md). Read firmware revision from DIS `0x2A26` when Baji info is missing.
 
 ## Related
 

@@ -187,39 +187,59 @@ export function buildPacket(moduleId, commandId, payload = new Uint8Array(0)) {
 }
 
 /**
- * Parse one complete Baji packet from a buffer.
- * Returns null if incomplete / not Baji.
+ * Parse one complete CD UART frame (Baji product 0x25 or FitPro module/cmd layout).
+ * FitPro short probes are 8 bytes (dataLength 5); Baji needs ≥9.
  */
 export function parsePacket(bytes) {
-  if (bytes.length < 9) return null;
+  if (bytes.length < 6) return null;
   if (bytes[0] !== PROTOCOL.START) return null;
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const dataLength = getU16BE(view, 1);
   const total = 3 + dataLength;
   if (bytes.length < total) return { incomplete: true, need: total };
-  if (bytes[3] !== PROTOCOL.PRODUCT_ID) {
+  const frame = bytes.slice(0, total);
+
+  // Baji: CD | len | 0x25 | ver | module | bodyLen | cmd | payload
+  if (frame[3] === PROTOCOL.PRODUCT_ID) {
+    if (total < 9) return { incomplete: true, need: 9 };
+    const moduleId = frame[5];
+    const bodyLen = getU16BE(view, 6);
+    const commandId = frame[8];
+    const payloadLen = Math.max(0, bodyLen - 1);
+    const payload = frame.slice(9, 9 + payloadLen);
     return {
-      legacy: true,
-      raw: bytes.slice(0, total),
-      moduleKey: bytes[3],
-      version: bytes[4],
-      command: bytes[5],
+      dialect: 'baji',
+      raw: frame,
+      productId: frame[3],
+      version: frame[4],
+      moduleId,
+      commandId,
+      payload,
+      moduleName: MODULE_NAMES[moduleId] || `MOD_0x${moduleId.toString(16)}`,
+      commandName: CMD_NAMES[moduleId]?.[commandId] || `CMD_0x${commandId.toString(16)}`,
     };
   }
-  const moduleId = bytes[5];
-  const bodyLen = getU16BE(view, 6);
-  const commandId = bytes[8];
-  const payloadLen = Math.max(0, bodyLen - 1);
-  const payload = bytes.slice(9, 9 + payloadLen);
+
+  // FitPro: CD | len | module | ver | cmd | payloadLen | payload
+  const moduleId = frame[3];
+  const commandId = frame[5];
+  let payload = new Uint8Array(0);
+  if (dataLength > 5 && total >= 8) {
+    const payloadLen = getU16BE(view, 6);
+    payload = frame.slice(8, Math.min(8 + payloadLen, total));
+  }
   return {
-    raw: bytes.slice(0, total),
-    productId: bytes[3],
-    version: bytes[4],
+    dialect: 'fitpro',
+    legacy: true,
+    raw: frame,
     moduleId,
+    moduleKey: moduleId,
+    version: frame[4],
     commandId,
+    command: commandId,
     payload,
-    moduleName: MODULE_NAMES[moduleId] || `MOD_0x${moduleId.toString(16)}`,
-    commandName: CMD_NAMES[moduleId]?.[commandId] || `CMD_0x${commandId.toString(16)}`,
+    moduleName: `FP_0x${moduleId.toString(16)}`,
+    commandName: `CMD_0x${commandId.toString(16)}`,
   };
 }
 
@@ -413,8 +433,11 @@ export function parseNack(payload) {
 export function describePacket(pkt) {
   if (!pkt) return 'null';
   if (pkt.incomplete) return `incomplete (need ${pkt.need})`;
-  if (pkt.legacy) {
-    return `legacy CD module=0x${pkt.moduleKey.toString(16)} cmd=0x${pkt.command.toString(16)} [${toHex(pkt.raw)}]`;
+  if (pkt.dialect === 'fitpro' || pkt.legacy) {
+    const mod = pkt.moduleId ?? pkt.moduleKey;
+    const cmd = pkt.commandId ?? pkt.command;
+    const pl = pkt.payload?.length ?? 0;
+    return `fitpro module=0x${Number(mod).toString(16)} cmd=0x${Number(cmd).toString(16)} payload=${pl}B | ${toHex(pkt.raw)}`;
   }
   const errHint =
     pkt.moduleId === Module.FILE_TRANSFER && pkt.commandId === FileCmd.TRANSFER_NACK

@@ -14,6 +14,7 @@ Documentation for the SuperBand electronic badge BLE stack from RnD investigatio
 | [System info](protocol/system-info.md) | Module `0x03` — device info request/response |
 | [Media management](protocol/media.md) | Module `0x02` — IDs, list, delete, preview |
 | [File transfer](protocol/file-transfer.md) | Module `0x01` — chunked upload, CRC32, verify |
+| [Dial upload (FitPro)](protocol/dial-upload.md) | Module `0x1F`/`0x20` — BJ-1 picture push |
 | [Command reference](protocol/commands.md) | All modules, opcodes, types, error codes |
 | [Packet examples](protocol/examples.md) | Hex dumps of real frames |
 | [Firmware OTA](protocol/ota-firmware.md) | JieLi OTA check API, DG01 / BJ-1 / LJ733 zip URLs |
@@ -29,7 +30,7 @@ Documentation for the SuperBand electronic badge BLE stack from RnD investigatio
 ## Quick facts
 
 - **Product:** electronic badge (电子吧唧), device type `3`
-- **Data plane:** Baji protocol, product ID `0x25`, start marker `0xCD`
+- **Data plane:** Baji (`0x25`) and/or FitPro dial (`0x1F`/`0x20`); start marker `0xCD`
 - **Transport:** GATT UART `7E400001` / write `…002` / notify `…003`
 - **Chunk size:** 200 bytes · **MTU target:** 512
 - **Manager UI:** `cd src && bun install && bun run dev` → http://localhost:8787

@@ -85,8 +85,11 @@ CD 00 06 12 01 0A 00 01 02
 
 Post-connect the app also sends legacy module `0x1A` probes (`D(10)`, `D(12)`). The web console sends the pair frame; Baji commands work without the full legacy handshake on many devices.
 
+FitPro-only badges (BJ-1) use modules **`0x1F` / `0x20`** for picture push — see [Dial upload](dial-upload.md). Do not assume Baji `0x25` media/file commands exist.
+
 ## Related
 
 - [Commands](commands.md)
 - [Examples](examples.md)
 - [Overview](overview.md)
+- [Dial upload](dial-upload.md)

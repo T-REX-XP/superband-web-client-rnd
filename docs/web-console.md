@@ -46,29 +46,32 @@ Production static site is published to **GitHub Pages** by [`.github/workflows/p
 | Model, firmware, hardware, software, manufacturer | GATT **DIS** `0x180A` (`2A24`…`2A29`) |
 | Battery | GATT Battery `0x180F` / `2A19` |
 | Protocol, free/capacity | Baji `DEVICE_INFO_RESPONSE` (optional — many badges omit this) |
+| Push path | **Baji** file/media if device-info works; else **FitPro dial31** ([dial-upload](protocol/dial-upload.md)) |
 
-Push and media allocate **do not** require Baji device-info. If only a legacy `0xDC` pair ack arrives (e.g. **BJ-1**), the UI still shows DIS + battery and image push remains available.
+If only a legacy `0xDC` pair ack arrives (e.g. **BJ-1**), the UI still shows DIS + battery. Image push uses FitPro dial upload; Baji media list/allocate are skipped (they disconnect these badges).
 
 ### Architecture
 
 | Module | Role |
 |--------|------|
-| `js/protocol.js` | Frame codec, CRC32, GATT UUIDs, `REPO_URL` |
+| `js/protocol.js` | Frame codec (Baji + FitPro CD), CRC32, GATT UUIDs, `REPO_URL` |
+| `js/fitpro.js` | FitPro dial31 builders + dial-info parse |
 | `js/ble.js` | Web Bluetooth UART + DIS + battery |
 | `js/client.js` | `SuperBandClient` multi-session hub + per-badge `BadgeSession` |
+| `js/image.js` | Cover-crop + JPEG encode for dial size |
+| `js/app.js` | UI bindings |
 
 ### Multi-device notes
 
 Web Bluetooth can keep **several GATT connections** at once. Each **Add badge** call needs a fresh user gesture (`requestDevice`). The adapter / OS may limit how many LE links stay up. Selecting a device that is already connected focuses that session instead of duplicating it.
-| `js/image.js` | Cover-crop + JPEG encode for dial size |
-| `js/app.js` | UI bindings |
 
 ### Image pipeline
 
 1. User picks image  
-2. Cover-crop to dial width×height (round mask default on)  
+2. Cover-crop to dial width×height (round mask default on; dims may follow dial-info)  
 3. JPEG quality ~0.5 (matches app TurboJPEG ~50)  
-4. `allocateMediaId` (optional) → `transferFile` chunks of 200 B  
+4. **Baji path:** optional `allocateMediaId` → file-transfer chunks (~200 B)  
+5. **FitPro path (BJ-1):** dial31 start → data (seq + byte-sum) → finish; status `1000+n` / `2`  
 
 ---
 

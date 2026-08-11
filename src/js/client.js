@@ -25,9 +25,26 @@ import {
   parseAck,
   parseNack,
 } from './protocol.js';
+import {
+  FitPro,
+  buildDialInfoRequest,
+  buildDialStatusRequest,
+  buildDialStart,
+  buildDialStartPayload,
+  buildDialDataChunk,
+  buildDialFinish,
+  buildDialFileBlob,
+  parseDialInfo,
+  parseDialStatusCode,
+  isFitProDialInfoPacket,
+  isFitProDialStatusPacket,
+  describeFitProDial,
+  dialChunkSize,
+  fitproByteSum,
+} from './fitpro.js';
 
 /**
- * One connected badge (GATT session + Baji waiters).
+ * One connected badge (GATT session + Baji / FitPro waiters).
  * Web Bluetooth allows several concurrent GATT connections; each needs its own
  * `requestDevice()` user gesture.
  */
@@ -41,6 +58,9 @@ class BadgeSession {
     this.battery = null;
     this.mediaId = null;
     this.mediaList = null;
+    /** @type {'unknown'|'baji'|'fitpro'} */
+    this.protocolMode = 'unknown';
+    this.dialInfo = null;
     this._fileId = 1n;
     this._waiters = new Map();
     this._transferring = false;
@@ -54,26 +74,38 @@ class BadgeSession {
     return this.ble?.device?.name || this.deviceInfo?.name || null;
   }
 
+  /** True when Baji media/file modules are available. */
+  get supportsBajiMedia() {
+    return this.protocolMode === 'baji';
+  }
+
   getSnapshot() {
     const dis = this.disInfo || {};
     const baji = this.deviceInfo || {};
+    const dial = this.dialInfo || {};
     return {
       sessionId: this.id,
       connected: this.connected,
       name: this.name,
-      model: dis.model || baji.name || null,
+      model: dis.model || baji.name || dial.mchModel || null,
       firmware: dis.firmware || baji.deviceVersion || null,
       hardware: dis.hardware || null,
       software: dis.software || null,
       manufacturer: dis.manufacturer || null,
       serial: dis.serial || null,
-      protocol: baji.protocolVersion || null,
+      protocol:
+        baji.protocolVersion ||
+        (this.protocolMode === 'fitpro' ? 'FitPro dial31' : this.protocolMode === 'baji' ? 'Baji' : null),
+      protocolMode: this.protocolMode,
       battery: this.battery,
       freeStorage: baji.freeStorage ?? null,
       storageCapacity: baji.storageCapacity ?? null,
       maxFileSize: baji.maxFileSize ?? null,
       features: baji.features || null,
       mediaId: this.mediaId,
+      dialWidth: dial.width ?? null,
+      dialHeight: dial.height ?? null,
+      dialAlgorithm: dial.algorithm ?? null,
       transferring: this._transferring,
     };
   }
@@ -158,6 +190,8 @@ class BadgeSession {
           this.battery = null;
           this.mediaId = null;
           this.mediaList = null;
+          this.dialInfo = null;
+          this.protocolMode = 'unknown';
           // Only drop the hub entry if this object still owns that id
           // (avoids wiping an existing session when a duplicate picker result is discarded).
           this.hub._onSessionLost(this.id, this);
@@ -191,11 +225,19 @@ class BadgeSession {
 
     try {
       await this.refreshDeviceInfo({ timeoutMs: 6000 });
+      this.protocolMode = 'baji';
+      this._log('Protocol: Baji (media/file modules)', 'ok');
     } catch (e) {
+      this.protocolMode = 'fitpro';
       this._log(
-        `Baji device info unavailable (${e.message}) — using DIS / GAP for details`,
+        `Baji device info unavailable (${e.message}) — FitPro dial path (no Baji media probes)`,
         'warn',
       );
+      try {
+        await this.refreshDialInfo({ timeoutMs: 8000 });
+      } catch (e2) {
+        this._log(`Dial info unavailable (${e2.message}) — push will use defaults`, 'warn');
+      }
     }
     this.hub._emitSnapshot();
     return this.getSnapshot();
@@ -229,6 +271,9 @@ class BadgeSession {
   }
 
   async allocateMediaId({ timeoutMs = 30000 } = {}) {
+    if (!this.supportsBajiMedia) {
+      throw new Error('Media ID is Baji-only; this badge uses FitPro dial push');
+    }
     await this.write(buildMediaIdRequest(), 'MEDIA_ID_REQUEST');
     const pkt = await this._waitFor(
       (p) => p.moduleId === Module.MEDIA && p.commandId === MediaCmd.ID_RESPONSE,
@@ -243,6 +288,10 @@ class BadgeSession {
   }
 
   async requestMediaList({ timeoutMs = 15000 } = {}) {
+    if (!this.supportsBajiMedia) {
+      this._log('Skip MEDIA_LIST — FitPro badge (Baji media disconnects BJ-1)', 'warn');
+      return [];
+    }
     await this.write(buildMediaListRequest(), 'MEDIA_LIST_REQUEST');
     const pkt = await this._waitFor(
       (p) => p.moduleId === Module.MEDIA && p.commandId === MediaCmd.LIST_RESPONSE,
@@ -255,6 +304,9 @@ class BadgeSession {
   }
 
   async deleteMedia(mediaId, { timeoutMs = 15000 } = {}) {
+    if (!this.supportsBajiMedia) {
+      throw new Error('Media delete is Baji-only on this badge');
+    }
     await this.write(buildMediaDelete(mediaId), 'MEDIA_DELETE');
     try {
       const pkt = await this._waitFor(
@@ -265,6 +317,46 @@ class BadgeSession {
     } catch {
       return null;
     }
+  }
+
+  async refreshDialInfo({ timeoutMs = 8000 } = {}) {
+    await this.write(buildDialInfoRequest(), 'DIAL_INFO_REQUEST');
+    const pkt = await this._waitFor((p) => isFitProDialInfoPacket(p), {
+      timeoutMs,
+      label: 'DIAL_INFO_RESPONSE',
+    });
+    const info = parseDialInfo(pkt.payload);
+    if (!info) throw new Error('Could not parse dial info');
+    this.dialInfo = info;
+    this._log(`Dial info: ${describeFitProDial(info)}`, 'ok');
+    this._emit('dialinfo', { info });
+    this.hub._emitSnapshot();
+    return info;
+  }
+
+  async _waitDialStatus(expectedCode, { timeoutMs = 15000, label = 'DIAL_STATUS' } = {}) {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      const remain = Math.max(200, deadline - Date.now());
+      const pending = this._waitFor(
+        (p) => isFitProDialStatusPacket(p) && parseDialStatusCode(p.payload) != null,
+        { timeoutMs: Math.min(2500, remain), label },
+      );
+      // Poll status while waiting (WatchTheme3Tools.L).
+      this.write(buildDialStatusRequest(), 'DIAL_STATUS_POLL').catch(() => {});
+      try {
+        const pkt = await pending;
+        const code = parseDialStatusCode(pkt.payload);
+        if (code === expectedCode) return pkt;
+        if (code >= 1 && code <= 9) {
+          throw new Error(`Dial upgrade error status=${code}`);
+        }
+        // Other progress codes — keep waiting for expectedCode.
+      } catch (e) {
+        if (String(e.message || '').startsWith('Dial upgrade error')) throw e;
+      }
+    }
+    throw new Error(`Timeout waiting for ${label} (code ${expectedCode})`);
   }
 
   async queryTransferStatus() {
@@ -281,6 +373,10 @@ class BadgeSession {
       onProgress = null,
     } = {},
   ) {
+    if (this.protocolMode !== 'baji') {
+      return this.transferDialFile(fileBytes, { onProgress });
+    }
+
     if (this._transferring) throw new Error('Transfer already in progress on this badge');
     this._transferring = true;
     this.hub._emitSessions();
@@ -381,7 +477,105 @@ class BadgeSession {
         checksum,
         verified,
       });
-      return { fileId, mediaId: mid, checksum, verified, sessionId: this.id };
+      return { fileId, mediaId: mid, checksum, verified, sessionId: this.id, path: 'baji' };
+    } finally {
+      this._transferring = false;
+      this.hub._emitSessions();
+    }
+  }
+
+  /**
+   * FitPro WatchTheme3 dial31 custom-background upload (BJ-1 / LJ733 SuperBand).
+   */
+  async transferDialFile(fileBytes, { onProgress = null } = {}) {
+    if (this._transferring) throw new Error('Transfer already in progress on this badge');
+    this._transferring = true;
+    this.hub._emitSessions();
+
+    try {
+      if (!this.dialInfo) {
+        try {
+          await this.refreshDialInfo({ timeoutMs: 8000 });
+        } catch (e) {
+          this._log(`Dial info probe failed (${e.message}) — continuing with JPEG defaults`, 'warn');
+        }
+      }
+
+      const info = this.dialInfo;
+      if (info && !info.jpeg && info.algorithm !== 4) {
+        this._log(
+          `Dial algorithm=${info.algorithm} (app uses native BmpConvert); trying JPEG anyway`,
+          'warn',
+        );
+      }
+
+      const dialType = info?.algorithm === 4 ? 2 : info?.dialType === 2 ? 2 : 2;
+      const fileBlob = buildDialFileBlob(fileBytes);
+      const chunkSize = dialChunkSize(info);
+      const checksum = fitproByteSum(fileBlob);
+
+      this._log(
+        `Dial31 push size=${fileBlob.length} (img=${fileBytes.length}) chunk=${chunkSize} type=${dialType}`,
+        'info',
+      );
+      this._emit('transfer', {
+        phase: 'start',
+        mediaId: FitPro.PICTURE_DIAL_ID,
+        size: fileBlob.length,
+        checksum,
+        path: 'fitpro-dial31',
+      });
+      onProgress?.(2);
+
+      const startPayload = buildDialStartPayload({
+        dialId: FitPro.PICTURE_DIAL_ID,
+        dialType,
+        fileSize: fileBlob.length,
+      });
+      await this.write(buildDialStart(startPayload), 'DIAL_START');
+      await this._waitDialStatus(FitPro.STATUS_CHUNK_BASE, {
+        timeoutMs: 20000,
+        label: 'DIAL_START_ACK(1000)',
+      });
+      onProgress?.(5);
+
+      const totalChunks = Math.max(1, Math.ceil(fileBlob.length / chunkSize));
+      for (let i = 0; i < totalChunks; i++) {
+        const start = i * chunkSize;
+        const end = Math.min(start + chunkSize, fileBlob.length);
+        const slice = fileBlob.slice(start, end);
+        const seq = i + 1;
+        await this.write(buildDialDataChunk(seq, slice), `DIAL_DATA[${seq}]`);
+        await this._waitDialStatus(FitPro.STATUS_CHUNK_BASE + seq, {
+          timeoutMs: 20000,
+          label: `DIAL_CHUNK_ACK(${FitPro.STATUS_CHUNK_BASE + seq})`,
+        });
+        const pct = 5 + Math.round(((i + 1) / totalChunks) * 90);
+        onProgress?.(pct, i + 1, totalChunks);
+        this._emit('transfer', { phase: 'chunk', index: i, total: totalChunks, percent: pct });
+      }
+
+      await this.write(buildDialFinish(fileBlob), 'DIAL_FINISH');
+      await this._waitDialStatus(FitPro.STATUS_OK, {
+        timeoutMs: 30000,
+        label: 'DIAL_FINISH_OK(2)',
+      });
+      onProgress?.(100, totalChunks, totalChunks);
+      this._emit('transfer', {
+        phase: 'complete',
+        mediaId: FitPro.PICTURE_DIAL_ID,
+        checksum,
+        verified: true,
+        path: 'fitpro-dial31',
+      });
+      return {
+        fileId: FitPro.PICTURE_DIAL_ID,
+        mediaId: FitPro.PICTURE_DIAL_ID,
+        checksum,
+        verified: true,
+        sessionId: this.id,
+        path: 'fitpro-dial31',
+      };
     } finally {
       this._transferring = false;
       this.hub._emitSessions();
@@ -389,7 +583,9 @@ class BadgeSession {
   }
 
   async stopTransfer() {
-    await this.write(buildTransferStop(this._fileId), 'TRANSFER_STOP');
+    if (this.protocolMode === 'baji') {
+      await this.write(buildTransferStop(this._fileId), 'TRANSFER_STOP');
+    }
   }
 }
 
@@ -440,12 +636,16 @@ export class SuperBandClient extends EventTarget {
       manufacturer: null,
       serial: null,
       protocol: null,
+      protocolMode: 'unknown',
       battery: null,
       freeStorage: null,
       storageCapacity: null,
       maxFileSize: null,
       features: null,
       mediaId: null,
+      dialWidth: null,
+      dialHeight: null,
+      dialAlgorithm: null,
       sessionId: null,
     };
   }
@@ -581,6 +781,10 @@ export class SuperBandClient extends EventTarget {
 
   async refreshDeviceInfo(opts) {
     return this._requireActive().refreshDeviceInfo(opts);
+  }
+
+  async refreshDialInfo(opts) {
+    return this._requireActive().refreshDialInfo(opts);
   }
 
   async pair() {
