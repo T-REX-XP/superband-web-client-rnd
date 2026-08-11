@@ -1,9 +1,16 @@
-unpacked/*
+# Local research / large binaries
+artifacts/*.apks
+artifacts/*.apk
+research/unpacked/
+
+# Dependencies & build output
 node_modules/
 dist/
+web/dist/
+web/node_modules/
+
+# Misc
 *.log
 .DS_Store
-src/dist/
-src/node_modules/
-
-artifact/SuperBand_2.1.25_apkcube.apks
+.env
+.env.*

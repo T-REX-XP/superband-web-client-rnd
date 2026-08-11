@@ -63,7 +63,7 @@ Reference client `parsePacket` returns a slice that **includes** `commandId` at 
 - `commandId = byte[8]`
 - `payload = bytes[9 .. 9+payloadLen)`
 
-Notify callbacks may fragment frames across MTU boundaries. Reassemble by reading `dataLength` after seeing `0xCD`, then waiting for `3 + dataLength` bytes (`PacketAssembler` in `webapp/js/protocol.js`).
+Notify callbacks may fragment frames across MTU boundaries. Reassemble by reading `dataLength` after seeing `0xCD`, then waiting for `3 + dataLength` bytes (`PacketAssembler` in `web/js/protocol.js`).
 
 ## Legacy MyWatch frames
 

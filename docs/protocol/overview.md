@@ -53,13 +53,13 @@ flowchart LR
 
 ## Implementation map
 
-| Concern | Android reference client | Web client (`src/`) |
+| Concern | Android reference client | Web client (`web/`) |
 |---------|----------------------|---------------------|
-| Frame build/parse | `com.baji.protocol.utils.ProtocolEncoder` | `src/js/protocol.js` |
-| Orchestration | `BajiProtocolManager` | `src/js/client.js` (`SuperBandClient`) |
-| GATT write/notify | MyWatch SDK bluetooth layer | `src/js/ble.js` |
+| Frame build/parse | `com.baji.protocol.utils.ProtocolEncoder` | `web/js/protocol.js` |
+| Orchestration | `BajiProtocolManager` | `web/js/client.js` (`SuperBandClient`) |
+| GATT write/notify | MyWatch SDK bluetooth layer | `web/js/ble.js` |
 | Transfer | `FileTransferService` | `SuperBandClient.transferFile()` |
-| Management UI | DeviceHome / PicturePush | `src/index.html` + `src/js/app.js` |
+| Management UI | DeviceHome / PicturePush | `web/index.html` + `web/js/app.js` |
 
 ## Related docs
 

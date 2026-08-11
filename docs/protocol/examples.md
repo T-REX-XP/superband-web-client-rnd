@@ -115,7 +115,7 @@ Codec unit check (Node):
 ```bash
 cd /opt/superband
 node --input-type=module -e "
-import { buildPacket, toHex } from './webapp/js/protocol.js';
+import { buildPacket, toHex } from './web/js/protocol.js';
 console.log(toHex(buildPacket(3, 0)));
 "
 ```

@@ -6,7 +6,7 @@ How the protocol docs were derived during RnD investigation of **SuperBand 2.1.2
 
 | Item | Value |
 |------|-------|
-| Bundle | `artifact/SuperBand_2.1.25_apkcube.apks` |
+| Bundle | `artifacts/SuperBand_2.1.25_apkcube.apks` |
 | Package | `com.legend.smartwatch.electronicbadge.android` |
 | Version code | 103 |
 | Primary APK | `base.apk` |
@@ -14,15 +14,15 @@ How the protocol docs were derived during RnD investigation of **SuperBand 2.1.2
 ## Unpack
 
 ```bash
-unzip artifact/SuperBand_2.1.25_apkcube.apks -d unpacked/apks
-jadx -d unpacked/jadx --show-bad-code --no-res unpacked/apks/base.apk
+unzip artifacts/SuperBand_2.1.25_apkcube.apks -d research/unpacked/apks
+jadx -d research/unpacked/jadx --show-bad-code --no-res research/unpacked/apks/base.apk
 ```
 
-`unpacked/` is gitignored (large).
+`research/unpacked/` is gitignored (large).
 
 ## Key source locations
 
-| Topic | Path under `unpacked/jadx/sources/` |
+| Topic | Path under `research/unpacked/jadx/sources/` |
 |-------|-------------------------------------|
 | Frame codec | `com/baji/protocol/utils/ProtocolEncoder.java` |
 | Constants | `com/baji/protocol/model/ProtocolConstants.java` |
@@ -46,7 +46,7 @@ jadx -d unpacked/jadx --show-bad-code --no-res unpacked/apks/base.apk
 5. Read `ProtocolEncoder.buildPacket` / `parsePacket` for wire layout
 6. Read `FileTransferService.buildFileInfoPayload` for TRANSFER_START TLV (differs from encoder’s generic `FileInfo` builder)
 7. Confirm opcode numeric values (including those aliased via `AttrAndFunCode` constants)
-8. Implement codec in `src/js/protocol.js` / `webapp/js/protocol.js` and cross-check hex against encoder math
+8. Implement codec in `web/js/protocol.js` (and the debug console copy) and cross-check hex against encoder math
 
 ## Gotchas
 

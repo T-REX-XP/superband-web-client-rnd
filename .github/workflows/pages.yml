@@ -1,6 +1,6 @@
 name: Pages
 
-# Deploy the SuperBand Web Bluetooth client whenever src/ changes on the default branch.
+# Deploy the SuperBand Web Bluetooth client whenever web/ changes on the default branch.
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
       - master
       - main
     paths:
-      - "src/**"
+      - "web/**"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
@@ -48,7 +48,7 @@ jobs:
           echo "Base path: $(tail -1 "$GITHUB_OUTPUT")"
 
       - name: Install and build client
-        working-directory: src
+        working-directory: web
         env:
           BASE_PATH: ${{ steps.base.outputs.path }}
         run: |
@@ -60,17 +60,13 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p _site
-          cp -a src/dist/. _site/
-          VERSION="$(python3 -c "import json; print(json.load(open('src/package.json'))['version'])")"
+          cp -a web/dist/. _site/
+          VERSION="$(python3 -c "import json; print(json.load(open('web/package.json'))['version'])")"
           cat > _site/version.json <<EOF
           {"version":"${VERSION}","repository":"${{ github.repository }}","built_at":"$(date -u +%Y-%m-%dT%H:%M:%SZ)","source":"pages-workflow","base_path":"${{ steps.base.outputs.path }}"}
           EOF
           test -f _site/index.html
           test -f _site/.nojekyll
-          # Asset URLs must be root-absolute under the repo base (not ./ relative)
-          if ! grep -qE 'href="(/|https?:)' _site/index.html && ! grep -q "href=\"${{ steps.base.outputs.path }}" _site/index.html; then
-            echo "::warning::Unexpected asset href scheme in index.html"
-          fi
           head -n 12 _site/index.html
 
       - uses: actions/configure-pages@v6

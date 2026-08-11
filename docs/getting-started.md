@@ -3,13 +3,13 @@
 ## Repository layout
 
 ```
-opt/superband/
-├── .github/workflows/ # Pages deploy + validate (Bun)
-├── artifact/          # Original .apks
-├── docs/              # This documentation
-├── src/               # Web Bluetooth management client (primary)
-├── webapp/            # Low-level protocol debug console
-└── unpacked/          # Extracted APK + jadx sources (gitignored)
+.
+├── .github/workflows/   # Pages deploy + validate (Bun)
+├── artifacts/           # Local APKs (gitignored)
+├── docs/                # This documentation
+├── web/                 # Web Bluetooth management client (primary)
+├── tools/debug-console/ # Low-level protocol debug console
+└── research/unpacked/   # Extracted APK + jadx sources (gitignored)
 ```
 
 ## Prerequisites
@@ -24,7 +24,7 @@ opt/superband/
 Requires [Bun](https://bun.sh).
 
 ```bash
-cd /opt/superband/src
+cd web
 bun install
 bun run dev
 ```
@@ -42,16 +42,16 @@ See [Web client](web-console.md) and [File transfer](protocol/file-transfer.md).
 ### Debug console (optional)
 
 ```bash
-cd /opt/superband/webapp && python3 -m http.server 8765
+cd tools/debug-console && python3 -m http.server 8765
 ```
 
 ## Unpack the APK (optional)
 
-Already done under `unpacked/` when this project was set up. To redo:
+Already done under `research/unpacked/` when this project was set up. To redo:
 
 ```bash
-unzip artifact/SuperBand_2.1.25_apkcube.apks -d unpacked/apks
-jadx -d unpacked/jadx --show-bad-code --no-res unpacked/apks/base.apk
+unzip artifacts/SuperBand_2.1.25_apkcube.apks -d research/unpacked/apks
+jadx -d research/unpacked/jadx --show-bad-code --no-res research/unpacked/apks/base.apk
 ```
 
 Key packages from the reference client:

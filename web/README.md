@@ -5,7 +5,7 @@ Custom Web Bluetooth manager for the electronic badge — powered by **Bun**.
 ## Setup
 
 ```bash
-cd /opt/superband/src
+cd web
 bun install
 ```
 
@@ -38,23 +38,21 @@ bun run build && bun run preview:dist
 
 ## GitHub Pages
 
-Push to `main`/`master` (changes under `src/`) deploys via [`.github/workflows/pages.yml`](../.github/workflows/pages.yml).
+Push to `main`/`master` (changes under `web/`) deploys via [`.github/workflows/pages.yml`](../.github/workflows/pages.yml).
 
-The workflow sets `BASE_PATH=/<repo>/` so CSS/JS load correctly on project Pages (not only with a trailing slash).
+The workflow sets `BASE_PATH=/<repo>/` so CSS/JS load correctly on project Pages.
 
 Manual deploy: **Actions → Pages → Run workflow**.
 
-Repo Settings → Pages → Source must be **GitHub Actions**. Site URL:
-
-`https://<owner>.github.io/<repo>/`
-
-Web Bluetooth requires a secure context — GitHub Pages HTTPS satisfies that.
+Site URL: `https://<owner>.github.io/<repo>/`
 
 ## Layout
 
 | Path | Role |
 |------|------|
 | `server.ts` | Bun.serve + HTML entry / HMR |
+| `build.ts` | Production static build (`BASE_PATH`) |
+| `preview.ts` | Serve `dist/` locally |
 | `index.html` | Management UI shell |
 | `css/app.css` | Theme |
 | `js/protocol.js` | Baji codec |
@@ -62,13 +60,5 @@ Web Bluetooth requires a secure context — GitHub Pages HTTPS satisfies that.
 | `js/client.js` | `SuperBandClient` API |
 | `js/image.js` | Dial crop / JPEG prep |
 | `js/app.js` | UI wiring |
-
-## Features
-
-- Connect badge (filtered) or any BLE device
-- Device info + battery
-- Push image (crop to dial size, JPEG, chunked Baji transfer)
-- Media ID allocate / list / delete
-- Activity log
 
 Protocol docs: [`../docs/`](../docs/README.md)

@@ -3,11 +3,11 @@ name: Validate
 on:
   push:
     paths:
-      - "src/**"
+      - "web/**"
       - ".github/workflows/validate.yml"
   pull_request:
     paths:
-      - "src/**"
+      - "web/**"
       - ".github/workflows/validate.yml"
   workflow_dispatch:
 
@@ -22,7 +22,7 @@ jobs:
           bun-version: latest
 
       - name: Install and build client
-        working-directory: src
+        working-directory: web
         env:
           # Simulate project Pages path during CI
           BASE_PATH: /superband-web-client-rnd/
@@ -34,8 +34,8 @@ jobs:
       - name: Check dist output
         run: |
           set -euo pipefail
-          test -f src/dist/index.html
-          test -f src/dist/.nojekyll
-          test -f src/dist/404.html
-          grep -q '/superband-web-client-rnd/' src/dist/index.html
-          ls -la src/dist/
+          test -f web/dist/index.html
+          test -f web/dist/.nojekyll
+          test -f web/dist/404.html
+          grep -q '/superband-web-client-rnd/' web/dist/index.html
+          ls -la web/dist/
