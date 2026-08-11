@@ -39,7 +39,7 @@ Aligned with successful RGB565 pushes and `dg01-ble` / non-alg-4 FitPro path:
 | width × height | 360 × 360 | High (product + client default) |
 | algorithm | `0` (not `4`) | High (JPEG type 2 → black screen; RGB565 type 0 works) |
 | dialType | `0` | High |
-| shortPkgLength | `180` (web cap) | Medium (device may advertise larger) |
+| shortPkgLength | `5000` (Android default when unknown) | Medium |
 | encode | LE RGB565 | High |
 
 See `captures/BJ-1_baseline_inferred.json` and re-run the tool when the badge accepts a connection.

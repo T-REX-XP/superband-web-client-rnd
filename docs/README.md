@@ -36,6 +36,6 @@ Documentation for the SuperBand electronic badge BLE stack from RnD investigatio
 - **Data plane:** Baji (`0x25`) and/or FitPro dial (`0x1F`/`0x20`); start marker `0xCD`
 - **Transport:** GATT UART `7E400001` / write `…002` / notify `…003`
 - **OTA:** JieLi `AE00` / `AE01` / `AE02` (app + Advanced tab + `tools/send-ota.sh`)
-- **Chunk size:** ~200 B (Baji) · dial chunks capped ~180 B (FitPro web) · **MTU target:** 512
+- **Chunk size:** ~200 B (Baji) · FitPro dial logical chunks `shortPkg||5000` (ATT-fragmented) · **MTU target:** 512
 - **Manager UI:** `cd src && bun install && bun run dev` → http://localhost:8787 (**Manager** + **Advanced** tabs)
 - **GitHub Pages:** push `src/` to `main`/`master` (see `.github/workflows/pages.yml`)

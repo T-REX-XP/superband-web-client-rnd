@@ -46,7 +46,7 @@ See [GATT](gatt.md), [Framing](framing.md).
 | Algorithm | **0** → dial type `0` |
 | Encode | Little-endian **RGB565**, row-major |
 | Blob | `u32BE(imageLen) ‖ pixels` |
-| Chunk hint | `shortPkgLength` ≤ 180 for Web Bluetooth |
+| Chunk hint | `shortPkgLength` or **5000** logical; ATT-fragment writes ≤512 B |
 
 JPEG type `2` only when dial-info reports algorithm `4` (4:4:4 baseline JFIF).
 

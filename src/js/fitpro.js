@@ -31,9 +31,19 @@ export const FitPro = {
   STATUS_CHUNK_BASE: 1000,
   STATUS_OK: 2,
   STATUS_CHECK_FAIL: 1,
-  /** Web Bluetooth-safe max image bytes per dial data frame */
-  MAX_CHUNK: 180,
-  DEFAULT_CHUNK: 180,
+  /**
+   * Logical image bytes per dial DATA frame — matches WatchTheme3Tools `gh3.t()`:
+   * device `watchThemeShortPkgLenght`, else **5000** (Android has no 180 cap).
+   * Large FitPro frames are ATT-fragmented by `SuperBandBle.write` like CommandPool.
+   */
+  MAX_CHUNK: 5000,
+  DEFAULT_CHUNK: 5000,
+  /** Android CommandPool.n(6) during dial upgrade */
+  COMMAND_POOL_MS: 6,
+  /** gh3 countdown: 15s total, 5s ticks; status poll when remaining ≤ 10s */
+  ACK_TIMEOUT_MS: 15000,
+  ACK_TICK_MS: 5000,
+  ACK_POLL_REMAINING_MS: 10000,
 };
 
 /** GAP names that speak FitPro dial / crash on Baji media + dial-info probes. */
@@ -298,8 +308,10 @@ export function describeFitProDial(info) {
     .join(' ');
 }
 
+/** Logical dial DATA payload size — Android `gh3.t()` (default 5000). */
 export function dialChunkSize(info) {
-  const fromDev = info?.shortPkgLength > 0 ? info.shortPkgLength : FitPro.DEFAULT_CHUNK;
+  const fromDev = info?.shortPkgLength > 0 ? Number(info.shortPkgLength) : FitPro.DEFAULT_CHUNK;
+  if (!Number.isFinite(fromDev) || fromDev < 1) return FitPro.DEFAULT_CHUNK;
   return Math.min(fromDev, FitPro.MAX_CHUNK);
 }
 

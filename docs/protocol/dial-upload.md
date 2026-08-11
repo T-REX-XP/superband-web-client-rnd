@@ -97,14 +97,14 @@ Matches SuperBand `PicturePush` → `WatchThemeTransferManager` → `gh3` for a 
    - `RGB` 3 bytes (usually `00 00 00`)
    - `u32BE fileSize` — blob length
    - style trailer `00 00 00 00` when no mix styles
-3. Wait status **`1000`**
+3. Wait status **`1000`** (strict — fail on 15 s timeout)
 4. **Data** `0x1F` / cmd `1`: `u16BE seq` ‖ chunk ‖ `u32BE byteSum(seq‖chunk)`  
-   Seq is **1-based**. Chunk size = `min(deviceShortPkg, 180)` in the web client (ATT-friendly).
-5. After each chunk, wait status **`1000 + seq`**
+   Seq is **1-based**. Logical chunk size = device `watchThemeShortPkgLenght`, else **5000** (Android `gh3.t()`). Web Bluetooth ATT-fragments each FitPro frame (≤512 B writes, **6 ms** CommandPool pacing).
+5. After each logical chunk, wait status **`1000 + seq`** (strict). On slow ACK, poll `0x20`/cmd `1` like WatchTheme3Tools (not dial-info cmd `2`).
 6. **Finish** `0x1F` / cmd `3`: `u32BE byteSum(entire blob)`
 7. Wait status **`2`**
 
-Inter-chunk pacing in the app is ~6 ms; the web client writes serially with a short delay. RGB565 ~259 KB takes longer than a ~20 KB JPEG.
+RGB565 ~259 KB is ~52 logical chunks at 5000 B (vs ~1400×180 B in the old web path).
 
 ## Web client
 

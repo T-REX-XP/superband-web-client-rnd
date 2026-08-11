@@ -287,9 +287,9 @@ class BadgeSession {
     this.ble = null;
   }
 
-  async write(bytes, label) {
+  async write(bytes, label, opts) {
     if (!this.connected) throw new Error('Not connected');
-    return this.ble.write(bytes, label);
+    return this.ble.write(bytes, label, opts);
   }
 
   async refreshDeviceInfo({ timeoutMs = 10000 } = {}) {
@@ -374,23 +374,37 @@ class BadgeSession {
   }
 
   /**
-   * Wait for dial status. Default: listen only (no 0x20 polls — those disconnect BJ-1).
-   * Set poll=true to mirror WatchTheme3Tools.L() on devices that tolerate it.
+   * Wait for dial status code — mirrors WatchTheme3Tools (`gh3`):
+   * listen for notify; after ~5s / when remaining ≤ 10s, poll `0x20`/cmd `1`
+   * (status poll, not dial-info — Android does this on countdown ticks).
    */
   async _waitDialStatus(
     expectedCode,
-    { timeoutMs = 15000, label = 'DIAL_STATUS', poll = false } = {},
+    {
+      timeoutMs = FitPro.ACK_TIMEOUT_MS,
+      label = 'DIAL_STATUS',
+      poll = true,
+    } = {},
   ) {
     const deadline = Date.now() + timeoutMs;
+    let nextPollAt = Date.now() + FitPro.ACK_TICK_MS;
     while (Date.now() < deadline) {
       if (!this.connected) throw new Error('Disconnected while waiting for dial status');
-      const remain = Math.max(200, deadline - Date.now());
+      const remain = deadline - Date.now();
+      const slice = Math.min(FitPro.ACK_TICK_MS, Math.max(50, remain));
       const pending = this._waitFor(
         (p) => isFitProDialStatusPacket(p) && parseDialStatusCode(p.payload) != null,
-        { timeoutMs: Math.min(poll ? 2500 : remain, remain), label },
+        { timeoutMs: slice, label },
       );
-      if (poll) {
-        this.write(buildDialStatusRequest(), 'DIAL_STATUS_POLL').catch(() => {});
+      // Android: countdown tick when remaining ≤ 10s → qm2.h() status poll.
+      const shouldPoll =
+        poll && Date.now() >= nextPollAt && remain <= FitPro.ACK_POLL_REMAINING_MS;
+      if (shouldPoll) {
+        nextPollAt = Date.now() + FitPro.ACK_TICK_MS;
+        this.write(buildDialStatusRequest(), 'DIAL_STATUS_POLL', {
+          paceMs: FitPro.COMMAND_POOL_MS,
+          quiet: true,
+        }).catch(() => {});
       }
       try {
         const pkt = await pending;
@@ -399,25 +413,14 @@ class BadgeSession {
         if (code >= 1 && code <= 9) {
           throw new Error(formatDialUpgradeError(code));
         }
+        // Other codes in 1000+ band for a different seq — keep waiting.
       } catch (e) {
         if (String(e.message || '').startsWith('Dial upgrade error')) throw e;
         if (String(e.message || '').includes('Disconnected')) throw e;
-        if (!poll) break;
+        // slice timeout — loop until deadline
       }
     }
     throw new Error(`Timeout waiting for ${label} (code ${expectedCode})`);
-  }
-
-  /** Soft wait: success on status, else continue after timeout (paced upload). */
-  async _awaitDialStatusOrContinue(expectedCode, { timeoutMs = 800, label = 'DIAL_STATUS' } = {}) {
-    try {
-      await this._waitDialStatus(expectedCode, { timeoutMs, label, poll: false });
-      return true;
-    } catch (e) {
-      if (String(e.message || '').startsWith('Dial upgrade error')) throw e;
-      if (!this.connected) throw e;
-      return false;
-    }
   }
 
   async queryTransferStatus() {
@@ -546,17 +549,20 @@ class BadgeSession {
   }
 
   /**
-   * FitPro WatchTheme3 dial31 custom-background upload (BJ-1 / LJ733 SuperBand).
+   * FitPro WatchTheme3 dial31 custom-background upload.
+   * Mirrors Android `gh3` / WatchTheme3Tools (PicturePush path):
+   * logical chunks = shortPkg||5000, CommandPool 6ms ATT fragments, strict 1000+seq ACKs.
    */
   async transferDialFile(fileBytes, { onProgress = null } = {}) {
     if (this._transferring) throw new Error('Transfer already in progress on this badge');
     if (!this.connected) throw new Error('Not connected');
     this._transferring = true;
     this.hub._emitSessions();
+    const writeOpts = { paceMs: FitPro.COMMAND_POOL_MS, quiet: true };
+    this.ble?.setQuiet?.(true);
 
     try {
-      // Do not send DIAL_INFO (0x20) — drops BJ-1. Default RGB565 + dialType 0
-      // (AC707N / dg01-ble). JPEG type 2 only when dial-info reported algorithm 4.
+      // Do not send DIAL_INFO (0x20/2) — drops BJ-1. Default RGB565 + dialType 0.
       const info = this.dialInfo;
       const dialType = info?.dialType ?? (info?.algorithm === 4 ? 2 : 0);
       const expectJpeg = dialType === 2;
@@ -573,9 +579,12 @@ class BadgeSession {
       const fileBlob = buildDialFileBlob(fileBytes);
       const chunkSize = dialChunkSize(info);
       const checksum = fitproByteSum(fileBlob);
+      const totalChunks = Math.max(1, Math.ceil(fileBlob.length / chunkSize));
 
       this._log(
-        `Dial31 push size=${fileBlob.length} (img=${fileBytes.length}) chunk=${chunkSize} type=${dialType} ${expectJpeg ? 'JPEG' : 'RGB565'} (no dial-info probe)`,
+        `Dial31 (Android-parity) size=${fileBlob.length} img=${fileBytes.length} ` +
+          `logicalChunk=${chunkSize} chunks=${totalChunks} type=${dialType} ` +
+          `${expectJpeg ? 'JPEG' : 'RGB565'} pace=${FitPro.COMMAND_POOL_MS}ms`,
         'info',
       );
       this._emit('transfer', {
@@ -595,55 +604,62 @@ class BadgeSession {
         dialType,
         fileSize: fileBlob.length,
       });
-      await this.write(buildDialStart(startPayload), 'DIAL_START');
-      // Prefer spontaneous status; fall back to paced send (no 0x20 polls).
-      const startAck = await this._awaitDialStatusOrContinue(FitPro.STATUS_CHUNK_BASE, {
-        timeoutMs: 1500,
+      await this.write(buildDialStart(startPayload), 'DIAL_START', writeOpts);
+      // gh3: wait status 1000 before first DATA (strict — no soft-continue).
+      await this._waitDialStatus(FitPro.STATUS_CHUNK_BASE, {
+        timeoutMs: FitPro.ACK_TIMEOUT_MS,
         label: 'DIAL_START_ACK(1000)',
+        poll: true,
       });
-      if (!startAck) this._log('No start ACK — continuing paced dial upload', 'warn');
       onProgress?.(5);
 
-      const totalChunks = Math.max(1, Math.ceil(fileBlob.length / chunkSize));
       for (let i = 0; i < totalChunks; i++) {
         if (!this.connected) throw new Error('Disconnected during dial upload');
         const start = i * chunkSize;
         const end = Math.min(start + chunkSize, fileBlob.length);
-        const slice = fileBlob.slice(start, end);
+        const slice = fileBlob.subarray
+          ? fileBlob.subarray(start, end)
+          : fileBlob.slice(start, end);
         const seq = i + 1;
-        await this.write(buildDialDataChunk(seq, slice), `DIAL_DATA[${seq}]`);
-        await this._awaitDialStatusOrContinue(FitPro.STATUS_CHUNK_BASE + seq, {
-          timeoutMs: 400,
+        await this.write(buildDialDataChunk(seq, slice), `DIAL_DATA[${seq}]`, writeOpts);
+        await this._waitDialStatus(FitPro.STATUS_CHUNK_BASE + seq, {
+          timeoutMs: FitPro.ACK_TIMEOUT_MS,
           label: `DIAL_CHUNK_ACK(${FitPro.STATUS_CHUNK_BASE + seq})`,
+          poll: true,
         });
-        await sleep(12);
         const pct = 5 + Math.round(((i + 1) / totalChunks) * 90);
         onProgress?.(pct, i + 1, totalChunks);
         this._emit('transfer', { phase: 'chunk', index: i, total: totalChunks, percent: pct });
       }
 
-      await this.write(buildDialFinish(fileBlob), 'DIAL_FINISH');
-      const finished = await this._awaitDialStatusOrContinue(FitPro.STATUS_OK, {
-        timeoutMs: 5000,
+      await this.write(buildDialFinish(fileBlob), 'DIAL_FINISH', writeOpts);
+      await this._waitDialStatus(FitPro.STATUS_OK, {
+        timeoutMs: FitPro.ACK_TIMEOUT_MS,
         label: 'DIAL_FINISH_OK(2)',
+        poll: true,
       });
       onProgress?.(100, totalChunks, totalChunks);
       this._emit('transfer', {
         phase: 'complete',
         mediaId: FitPro.PICTURE_DIAL_ID,
         checksum,
-        verified: finished,
+        verified: true,
         path: 'fitpro-dial31',
       });
+      this._log(
+        `Dial31 complete ${fileBlob.length}B in ${totalChunks} logical chunks (checksum=${checksum})`,
+        'ok',
+      );
       return {
         fileId: FitPro.PICTURE_DIAL_ID,
         mediaId: FitPro.PICTURE_DIAL_ID,
         checksum,
-        verified: finished,
+        verified: true,
         sessionId: this.id,
         path: 'fitpro-dial31',
       };
     } finally {
+      this.ble?.setQuiet?.(false);
       this._transferring = false;
       this.hub._emitSessions();
     }
@@ -875,8 +891,8 @@ export class SuperBandClient extends EventTarget {
     return this._requireActive().pair();
   }
 
-  async write(bytes, label) {
-    return this._requireActive().write(bytes, label);
+  async write(bytes, label, opts) {
+    return this._requireActive().write(bytes, label, opts);
   }
 
   async allocateMediaId(opts) {

@@ -30,6 +30,13 @@ export class SuperBandBle {
     this._boundDisconnect = () => this._handleDisconnect();
     this.writeQueue = Promise.resolve();
     this.disInfo = null;
+    /** When true, skip per-notify hex spam (dial bulk transfer). */
+    this.quiet = false;
+    /**
+     * Max GATT write length (Android uses MTU−3 after requestMtu(512)).
+     * Web Bluetooth does not expose MTU; Chrome typically allows up to 512.
+     */
+    this.maxWriteLength = 512;
   }
 
   get connected() {
@@ -109,11 +116,13 @@ export class SuperBandBle {
     await this.notifyChar.startNotifications();
     this.notifyChar.addEventListener('characteristicvaluechanged', (ev) => {
       const value = new Uint8Array(ev.target.value.buffer);
-      this.log(`← notify ${value.length}B  ${toHex(value)}`, 'rx');
+      if (!this.quiet) {
+        this.log(`← notify ${value.length}B  ${toHex(value)}`, 'rx');
+      }
       const packets = this.assembler.push(value);
       for (const pkt of packets) {
         if (!pkt || pkt.incomplete) continue;
-        this.log(`← ${describePacket(pkt)}`, 'rx');
+        if (!this.quiet) this.log(`← ${describePacket(pkt)}`, 'rx');
         this.onPacket(pkt);
       }
     });
@@ -135,20 +144,83 @@ export class SuperBandBle {
     return this.device;
   }
 
-  async write(data, label = 'write') {
+  /**
+   * Queue a GATT write. Large payloads are split like Android CommandPool
+   * (ATT fragments of maxWriteLength, paced).
+   * @param {Uint8Array|ArrayBuffer} data
+   * @param {string} label
+   * @param {{
+   *   paceMs?: number,
+   *   quiet?: boolean,
+   *   fragmentSize?: number,
+   *   hex?: boolean,
+   * }} [opts]
+   */
+  async write(data, label = 'write', opts = {}) {
     if (!this.writeChar) throw new Error('Not connected');
     const bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
+    const paceMs = opts.paceMs ?? 8;
+    const fragSize = Math.max(20, opts.fragmentSize ?? this.maxWriteLength);
+    const quiet = opts.quiet ?? false;
+    const showHex = opts.hex ?? !quiet;
+
     this.writeQueue = this.writeQueue.then(async () => {
-      this.log(`→ ${label} ${bytes.length}B  ${toHex(bytes)}`, 'tx');
       const props = this.writeChar.properties;
-      if (props.writeWithoutResponse) {
-        await this.writeChar.writeValueWithoutResponse(bytes);
-      } else {
-        await this.writeChar.writeValueWithResponse(bytes);
+      const withoutResponse = !!props.writeWithoutResponse;
+      const parts = [];
+      for (let o = 0; o < bytes.length; o += fragSize) {
+        parts.push(bytes.subarray(o, Math.min(o + fragSize, bytes.length)));
       }
-      await new Promise((r) => setTimeout(r, 8));
+      if (quiet) {
+        this.log(
+          `→ ${label} ${bytes.length}B` +
+            (parts.length > 1 ? ` (${parts.length} ATT frags @${fragSize})` : ''),
+          'tx',
+        );
+      } else if (parts.length === 1) {
+        this.log(
+          `→ ${label} ${bytes.length}B` + (showHex ? `  ${toHex(bytes)}` : ''),
+          'tx',
+        );
+      } else {
+        this.log(`→ ${label} ${bytes.length}B (${parts.length} ATT frags @${fragSize})`, 'tx');
+      }
+
+      for (let i = 0; i < parts.length; i++) {
+        const part = parts[i];
+        try {
+          if (withoutResponse) {
+            await this.writeChar.writeValueWithoutResponse(part);
+          } else {
+            await this.writeChar.writeValueWithResponse(part);
+          }
+        } catch (e) {
+          // If a full-size write fails, shrink and retry once (MTU smaller than assumed).
+          if (part.length > 20 && /Invalid.*length|too long|GATT/i.test(String(e.message || e))) {
+            const smaller = Math.max(20, Math.floor(part.length / 2));
+            this.maxWriteLength = Math.min(this.maxWriteLength, smaller);
+            this.log(`ATT write too long — retry fragSize=${smaller}`, 'warn');
+            for (let o = 0; o < part.length; o += smaller) {
+              const sub = part.subarray(o, Math.min(o + smaller, part.length));
+              if (withoutResponse) await this.writeChar.writeValueWithoutResponse(sub);
+              else await this.writeChar.writeValueWithResponse(sub);
+              if (paceMs > 0) await new Promise((r) => setTimeout(r, paceMs));
+            }
+            continue;
+          }
+          throw e;
+        }
+        if (paceMs > 0 && i < parts.length - 1) {
+          await new Promise((r) => setTimeout(r, paceMs));
+        }
+      }
+      if (paceMs > 0) await new Promise((r) => setTimeout(r, paceMs));
     });
     return this.writeQueue;
+  }
+
+  setQuiet(on) {
+    this.quiet = !!on;
   }
 
   async readBattery() {
