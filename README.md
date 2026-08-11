@@ -130,6 +130,7 @@ Details: [tools/README.md](tools/README.md) · [Firmware OTA](docs/protocol/ota-
 | [File transfer](docs/protocol/file-transfer.md) | Chunked upload + CRC32 |
 | [Media](docs/protocol/media.md) | IDs, list, delete |
 | [Firmware OTA](docs/protocol/ota-firmware.md) | JieLi OTA catalog + zip URLs |
+| [Firmware hardware](docs/protocol/firmware-hw.md) | AC707N SoC / peripherals from UFW |
 | [Commands](docs/protocol/commands.md) | Opcode tables |
 | [RnD investigation](docs/rnd-investigation.md) | Reference client notes |
 

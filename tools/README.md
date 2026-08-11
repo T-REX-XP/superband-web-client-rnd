@@ -5,6 +5,7 @@ Helper scripts for local RnD (firmware catalog / download, APK unpack). Run from
 | Script | Purpose |
 |--------|---------|
 | [`download-firmware.sh`](download-firmware.sh) | Probe tomato OTA catalog and/or download known SuperBand zips → `research/firmware/` |
+| [`analyze-firmware.sh`](analyze-firmware.sh) | Unpack JieLi UFW + summarize SoC / peripherals → `research/firmware/analysis/` |
 | [`probe-ota.mjs`](probe-ota.mjs) | JSON probe of `config/app` (same check as the Android client) |
 | [`unpack-apk.sh`](unpack-apk.sh) | Extract `.apks` → `research/unpacked/apks` and optionally decompile with jadx |
 
@@ -32,8 +33,12 @@ bun tools/probe-ota.mjs --name BJ-1 --version V32172
 # Unpack reference APK (+ jadx if installed)
 ./tools/unpack-apk.sh
 ./tools/unpack-apk.sh --apks artifacts/SuperBand_2.1.25_apkcube.apks --no-jadx
+
+# Hardware analysis of a downloaded UFW (needs git + python3 venv once)
+./tools/analyze-firmware.sh --preset dg01
+./tools/analyze-firmware.sh --preset bj1
 ```
 
 Outputs are gitignored under `research/firmware/` and `research/unpacked/`.
 
-See [Firmware OTA](../docs/protocol/ota-firmware.md) and [RnD investigation](../docs/rnd-investigation.md).
+See [Firmware OTA](../docs/protocol/ota-firmware.md), [Firmware hardware](../docs/protocol/firmware-hw.md), and [RnD investigation](../docs/rnd-investigation.md).

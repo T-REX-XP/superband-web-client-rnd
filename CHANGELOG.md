@@ -25,6 +25,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 - Badge picker filters include `BJ*`, `DG*`, `_V*`, mfg `0xAA01`
 - Pages deploy also publishes `debug-console/`
 - Manager supports **multiple concurrent badges** (add / switch active / disconnect one or all / push to all)
+- Firmware hardware analysis: SoC **AC707N**, CST816D TP, SPI NOR map (`docs/protocol/firmware-hw.md`, `tools/analyze-firmware.sh`)
 
 ### Changed
 

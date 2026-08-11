@@ -117,5 +117,6 @@ Do **not** flash a zip meant for another catalog product (`LJ755`, glass, etc.) 
 
 ## Related docs
 
+- [Firmware hardware](firmware-hw.md) — AC707N SoC, CST816D, flash map
 - [GATT](gatt.md) — `AE00` / DIS UUIDs
 - [RnD investigation](../rnd-investigation.md)

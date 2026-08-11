@@ -83,6 +83,12 @@ offered when soft version is **`V32294`** (not `V32399` — that is the target b
 ./tools/download-firmware.sh --preset dg01
 ```
 
+Hardware analysis (SoC **AC707N**, touch **CST816D**, ~4 MiB SPI NOR): [Firmware hardware](protocol/firmware-hw.md).
+
+```bash
+./tools/analyze-firmware.sh --preset dg01
+```
+
 Details: [Firmware OTA](protocol/ota-firmware.md) · [tools/README.md](../tools/README.md).
 
 ## Related documentation
