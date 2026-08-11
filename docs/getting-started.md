@@ -36,8 +36,10 @@ Open [http://localhost:8787](http://localhost:8787).
 1. Click **Connect badge** (or **Other device**)
 2. Select the badge in the browser picker (`BJ-1`, `DG01`, `*_BadgeOK`, …)
 3. Confirm the hero glance strip: name, model, firmware, battery
-4. Choose an image → preview on the dial → checklist green → **Push to badge**
-5. Optionally refresh the media library
+4. Optionally **Add badge** / **Add another** to connect more devices (each opens the picker)
+5. Click a chip in **Connected badges** to choose the active target
+6. Choose an image → checklist green → **Push to active** (or **Push to all**)
+7. Optionally refresh the media library for the active badge
 
 Repo / docs links are in the hero and footer. See [Web client](web-console.md) and [File transfer](protocol/file-transfer.md).
 

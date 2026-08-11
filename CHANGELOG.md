@@ -24,6 +24,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 - Default dial size **360×360**; round mask on by default; push checklist (connected / image / idle)
 - Badge picker filters include `BJ*`, `DG*`, `_V*`, mfg `0xAA01`
 - Pages deploy also publishes `debug-console/`
+- Manager supports **multiple concurrent badges** (add / switch active / disconnect one or all / push to all)
 
 ### Changed
 

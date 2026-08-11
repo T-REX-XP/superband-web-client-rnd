@@ -29,10 +29,11 @@ Production static site is published to **GitHub Pages** by [`.github/workflows/p
 
 | Area | Actions |
 |------|---------|
-| Hero | Connect / disconnect, Bluetooth readiness, **GitHub / Docs / Issues** links |
-| Glance strip | Name, model, firmware, battery, hardware, free storage (while connected) |
+| Hero | Connect / **add another** / disconnect / disconnect all; GitHub links |
+| Device rail | Multiple concurrent badges — click to make active, × to drop one |
+| Glance strip | Active badge: name, model, firmware, battery, hardware, free storage |
 | Device | Full DIS + battery + optional Baji storage/protocol; refresh; re-pair |
-| Push image | Checklist (connected / image / idle), dial preview, crop to WxH (default **360×360**), round mask on by default, JPEG, Baji upload |
+| Push image | **Push to active** or **Push to all**; checklist; dial 360×360; round mask |
 | Media library | Allocate ID, list, delete (auto-refresh attempted after connect / push) |
 | Activity | TX/RX and status log |
 | Footer | Repo + protocol links, debug console, build meta |
@@ -54,7 +55,11 @@ Push and media allocate **do not** require Baji device-info. If only a legacy `0
 |--------|------|
 | `js/protocol.js` | Frame codec, CRC32, GATT UUIDs, `REPO_URL` |
 | `js/ble.js` | Web Bluetooth UART + DIS + battery |
-| `js/client.js` | `SuperBandClient` — connect, identity snapshot, media, transfer |
+| `js/client.js` | `SuperBandClient` multi-session hub + per-badge `BadgeSession` |
+
+### Multi-device notes
+
+Web Bluetooth can keep **several GATT connections** at once. Each **Add badge** call needs a fresh user gesture (`requestDevice`). The adapter / OS may limit how many LE links stay up. Selecting a device that is already connected focuses that session instead of duplicating it.
 | `js/image.js` | Cover-crop + JPEG encode for dial size |
 | `js/app.js` | UI bindings |
 

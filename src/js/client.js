@@ -27,16 +27,20 @@ import {
 } from './protocol.js';
 
 /**
- * High-level SuperBand badge client (Baji over Web Bluetooth).
+ * One connected badge (GATT session + Baji waiters).
+ * Web Bluetooth allows several concurrent GATT connections; each needs its own
+ * `requestDevice()` user gesture.
  */
-export class SuperBandClient extends EventTarget {
-  constructor() {
-    super();
+class BadgeSession {
+  constructor(hub) {
+    this.hub = hub;
+    this.id = null;
     this.ble = null;
     this.deviceInfo = null;
     this.disInfo = null;
     this.battery = null;
     this.mediaId = null;
+    this.mediaList = null;
     this._fileId = 1n;
     this._waiters = new Map();
     this._transferring = false;
@@ -50,11 +54,11 @@ export class SuperBandClient extends EventTarget {
     return this.ble?.device?.name || this.deviceInfo?.name || null;
   }
 
-  /** Merged glance snapshot for the UI (DIS + Baji + battery). */
   getSnapshot() {
     const dis = this.disInfo || {};
     const baji = this.deviceInfo || {};
     return {
+      sessionId: this.id,
       connected: this.connected,
       name: this.name,
       model: dis.model || baji.name || null,
@@ -70,23 +74,31 @@ export class SuperBandClient extends EventTarget {
       maxFileSize: baji.maxFileSize ?? null,
       features: baji.features || null,
       mediaId: this.mediaId,
+      transferring: this._transferring,
     };
   }
 
-  _emitSnapshot() {
-    this._emit('snapshot', { snapshot: this.getSnapshot() });
-  }
-
-  static supported() {
-    return SuperBandBle.supported();
+  summary() {
+    const snap = this.getSnapshot();
+    return {
+      id: this.id,
+      name: snap.name,
+      model: snap.model,
+      firmware: snap.firmware,
+      battery: snap.battery,
+      connected: snap.connected,
+      active: this.hub.activeId === this.id,
+      transferring: this._transferring,
+    };
   }
 
   _emit(type, detail = {}) {
-    this.dispatchEvent(new CustomEvent(type, { detail }));
+    this.hub._emit(type, { ...detail, sessionId: this.id });
   }
 
   _log(msg, level = 'info') {
-    this._emit('log', { msg, level, ts: Date.now() });
+    const tag = this.name || this.id || 'badge';
+    this._emit('log', { msg: `[${tag}] ${msg}`, level, ts: Date.now() });
   }
 
   _waitFor(predicate, { timeoutMs = 15000, label = 'response' } = {}) {
@@ -138,34 +150,44 @@ export class SuperBandClient extends EventTarget {
     this.ble = new SuperBandBle({
       onLog: ({ msg, level }) => this._log(msg, level),
       onPacket: (pkt) => this._onPacket(pkt),
-      onConnectionChange: (on) => {
+      onConnectionChange: (on, meta = {}) => {
+        if (meta.id) this.id = meta.id;
         if (!on) {
           this.deviceInfo = null;
           this.disInfo = null;
           this.battery = null;
           this.mediaId = null;
+          this.mediaList = null;
+          // Only drop the hub entry if this object still owns that id
+          // (avoids wiping an existing session when a duplicate picker result is discarded).
+          this.hub._onSessionLost(this.id, this);
+          return;
         }
-        this._emit('connection', { connected: on, name: this.name });
-        this._emitSnapshot();
+        this.hub._emitSessions();
+        if (this.hub.activeId === this.id) {
+          this.hub._emit('connection', {
+            connected: this.hub.connected,
+            name: this.hub.name,
+            sessionId: this.id,
+          });
+          this.hub._emitSnapshot();
+        }
       },
     });
 
     await this.ble.connect({ acceptAll });
+    this.id = this.ble.device?.id || `session-${Date.now()}`;
     await this.refreshIdentity();
     return this;
   }
 
-  /**
-   * Battery + DIS (always) and best-effort Baji DEVICE_INFO.
-   * Push/media do not require Baji info — DIS is enough for glance fields.
-   */
   async refreshIdentity() {
     this.battery = await this.ble.readBattery();
     if (this.battery != null) this._emit('battery', { level: this.battery });
 
     this.disInfo = await this.ble.readDeviceInformation();
     this._emit('disinfo', { info: this.disInfo });
-    this._emitSnapshot();
+    this.hub._emitSnapshot();
 
     try {
       await this.refreshDeviceInfo({ timeoutMs: 6000 });
@@ -175,7 +197,7 @@ export class SuperBandClient extends EventTarget {
         'warn',
       );
     }
-    this._emitSnapshot();
+    this.hub._emitSnapshot();
     return this.getSnapshot();
   }
 
@@ -198,7 +220,7 @@ export class SuperBandClient extends EventTarget {
     const info = parseDeviceInfo(pkt.payload);
     this.deviceInfo = info;
     this._emit('deviceinfo', { info });
-    this._emitSnapshot();
+    this.hub._emitSnapshot();
     return info;
   }
 
@@ -216,7 +238,7 @@ export class SuperBandClient extends EventTarget {
     if (!r?.success) throw new Error(r?.message || 'Media ID allocation failed');
     this.mediaId = Number(r.mediaId);
     this._emit('mediaid', { mediaId: this.mediaId, message: r.message });
-    this._emitSnapshot();
+    this.hub._emitSnapshot();
     return this.mediaId;
   }
 
@@ -227,6 +249,7 @@ export class SuperBandClient extends EventTarget {
       { timeoutMs, label: 'MEDIA_LIST_RESPONSE' },
     );
     const items = parseMediaList(pkt.payload);
+    this.mediaList = items;
     this._emit('medialist', { items, raw: pkt.payload });
     return items;
   }
@@ -248,20 +271,19 @@ export class SuperBandClient extends EventTarget {
     await this.write(buildStatusQuery(), 'STATUS');
   }
 
-  /**
-   * Upload bytes to the badge via Baji file transfer.
-   * @param {Uint8Array} fileBytes
-   * @param {object} opts
-   */
-  async transferFile(fileBytes, {
-    fileType = FileType.IMAGE,
-    functionType = FunctionType.BACKGROUND,
-    mediaId = null,
-    allocateId = true,
-    onProgress = null,
-  } = {}) {
-    if (this._transferring) throw new Error('Transfer already in progress');
+  async transferFile(
+    fileBytes,
+    {
+      fileType = FileType.IMAGE,
+      functionType = FunctionType.BACKGROUND,
+      mediaId = null,
+      allocateId = true,
+      onProgress = null,
+    } = {},
+  ) {
+    if (this._transferring) throw new Error('Transfer already in progress on this badge');
     this._transferring = true;
+    this.hub._emitSessions();
 
     try {
       let mid = mediaId ?? this.mediaId;
@@ -359,14 +381,262 @@ export class SuperBandClient extends EventTarget {
         checksum,
         verified,
       });
-      return { fileId, mediaId: mid, checksum, verified };
+      return { fileId, mediaId: mid, checksum, verified, sessionId: this.id };
     } finally {
       this._transferring = false;
+      this.hub._emitSessions();
     }
   }
 
   async stopTransfer() {
     await this.write(buildTransferStop(this._fileId), 'TRANSFER_STOP');
+  }
+}
+
+/**
+ * Multi-badge hub. Each `connect()` opens another Web Bluetooth picker and keeps
+ * prior sessions alive. Commands target the active session unless noted.
+ */
+export class SuperBandClient extends EventTarget {
+  constructor() {
+    super();
+    /** @type {Map<string, BadgeSession>} */
+    this._sessions = new Map();
+    this.activeId = null;
+  }
+
+  static supported() {
+    return SuperBandBle.supported();
+  }
+
+  get sessionCount() {
+    return this._sessions.size;
+  }
+
+  get connected() {
+    return !!this.active?.connected;
+  }
+
+  get name() {
+    return this.active?.name || null;
+  }
+
+  get active() {
+    return this.activeId ? this._sessions.get(this.activeId) || null : null;
+  }
+
+  get sessions() {
+    return [...this._sessions.values()].map((s) => s.summary());
+  }
+
+  getSnapshot() {
+    return this.active?.getSnapshot() || {
+      connected: false,
+      name: null,
+      model: null,
+      firmware: null,
+      hardware: null,
+      software: null,
+      manufacturer: null,
+      serial: null,
+      protocol: null,
+      battery: null,
+      freeStorage: null,
+      storageCapacity: null,
+      maxFileSize: null,
+      features: null,
+      mediaId: null,
+      sessionId: null,
+    };
+  }
+
+  _emit(type, detail = {}) {
+    this.dispatchEvent(new CustomEvent(type, { detail }));
+  }
+
+  _emitSnapshot() {
+    this._emit('snapshot', { snapshot: this.getSnapshot(), sessionId: this.activeId });
+  }
+
+  _emitSessions() {
+    this._emit('sessions', {
+      sessions: this.sessions,
+      activeId: this.activeId,
+      count: this.sessionCount,
+    });
+  }
+
+  _requireActive() {
+    const s = this.active;
+    if (!s?.connected) throw new Error('No active badge connected');
+    return s;
+  }
+
+  _onSessionLost(id, session) {
+    if (!id) return;
+    const cur = this._sessions.get(id);
+    if (!cur || (session && cur !== session)) return;
+    this._sessions.delete(id);
+    if (this.activeId === id) {
+      const next = this._sessions.keys().next();
+      this.activeId = next.done ? null : next.value;
+    }
+    this._emitSessions();
+    this._emit('connection', {
+      connected: this.connected,
+      name: this.name,
+      sessionId: this.activeId,
+    });
+    this._emitSnapshot();
+  }
+
+  setActive(id) {
+    if (!this._sessions.has(id)) throw new Error('Unknown session');
+    this.activeId = id;
+    this._emitSessions();
+    this._emit('connection', {
+      connected: this.connected,
+      name: this.name,
+      sessionId: this.activeId,
+    });
+    this._emitSnapshot();
+    const s = this.active;
+    if (s?.mediaList) {
+      this._emit('medialist', { items: s.mediaList, sessionId: s.id });
+    }
+    return s;
+  }
+
+  /**
+   * Open the Bluetooth picker and add another badge (keeps existing connections).
+   * Selecting an already-connected device focuses that session.
+   */
+  async connect({ acceptAll = false } = {}) {
+    const session = new BadgeSession(this);
+    await session.connect({ acceptAll });
+
+    const existing = this._sessions.get(session.id);
+    if (existing && existing !== session) {
+      // Same BluetoothDevice id already connected — do not GATT-disconnect
+      // (that would drop the live session sharing this device object).
+      this._logReuse(session);
+      session.ble?.abandon();
+      session.ble = null;
+      this.setActive(existing.id);
+      return existing;
+    }
+
+    this._sessions.set(session.id, session);
+    this.activeId = session.id;
+    this._emitSessions();
+    this._emit('connection', {
+      connected: true,
+      name: session.name,
+      sessionId: session.id,
+    });
+    this._emitSnapshot();
+    this._emit('log', {
+      msg: `Session ready: ${session.name || session.id} (${this.sessionCount} connected)`,
+      level: 'ok',
+      ts: Date.now(),
+    });
+    return session;
+  }
+
+  _logReuse(session) {
+    this._emit('log', {
+      msg: `${session.name || session.id} already connected — switched to existing session`,
+      level: 'info',
+      ts: Date.now(),
+    });
+  }
+
+  async disconnect(id = this.activeId) {
+    if (!id) return;
+    const s = this._sessions.get(id);
+    if (!s) return;
+    await s.disconnect();
+    this._sessions.delete(id);
+    if (this.activeId === id) {
+      const next = this._sessions.keys().next();
+      this.activeId = next.done ? null : next.value;
+    }
+    this._emitSessions();
+    this._emit('connection', {
+      connected: this.connected,
+      name: this.name,
+      sessionId: this.activeId,
+    });
+    this._emitSnapshot();
+  }
+
+  async disconnectAll() {
+    const ids = [...this._sessions.keys()];
+    await Promise.all(ids.map((id) => this.disconnect(id)));
+  }
+
+  async refreshIdentity() {
+    return this._requireActive().refreshIdentity();
+  }
+
+  async refreshDeviceInfo(opts) {
+    return this._requireActive().refreshDeviceInfo(opts);
+  }
+
+  async pair() {
+    return this._requireActive().pair();
+  }
+
+  async write(bytes, label) {
+    return this._requireActive().write(bytes, label);
+  }
+
+  async allocateMediaId(opts) {
+    return this._requireActive().allocateMediaId(opts);
+  }
+
+  async requestMediaList(opts) {
+    return this._requireActive().requestMediaList(opts);
+  }
+
+  async deleteMedia(mediaId, opts) {
+    return this._requireActive().deleteMedia(mediaId, opts);
+  }
+
+  async queryTransferStatus() {
+    return this._requireActive().queryTransferStatus();
+  }
+
+  async transferFile(fileBytes, opts) {
+    return this._requireActive().transferFile(fileBytes, opts);
+  }
+
+  /**
+   * Push the same image to every connected badge (sequential).
+   */
+  async transferFileToAll(fileBytes, opts = {}) {
+    const results = [];
+    for (const session of this._sessions.values()) {
+      if (!session.connected) continue;
+      const prev = this.activeId;
+      this.activeId = session.id;
+      this._emitSessions();
+      try {
+        const r = await session.transferFile(fileBytes, opts);
+        results.push({ ok: true, ...r, name: session.name });
+      } catch (e) {
+        results.push({ ok: false, error: e.message, sessionId: session.id, name: session.name });
+      } finally {
+        this.activeId = prev;
+      }
+    }
+    this._emitSessions();
+    this._emitSnapshot();
+    return results;
+  }
+
+  async stopTransfer() {
+    return this._requireActive().stopTransfer();
   }
 }
 

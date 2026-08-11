@@ -107,7 +107,10 @@ export class SuperBandBle {
       }
     });
 
-    this.onConnectionChange(true);
+    this.onConnectionChange(true, {
+      id: this.device.id,
+      name: this.device.name || null,
+    });
     this.log('Notify enabled on 7E400003');
 
     try {
@@ -200,15 +203,27 @@ export class SuperBandBle {
     if (this.device?.gatt?.connected) {
       this.device.gatt.disconnect();
     }
-    this._cleanup();
+    this._cleanup({ notify: true });
+  }
+
+  /**
+   * Drop local handles without calling GATT disconnect.
+   * Used when a second picker result is the same BluetoothDevice as a live session.
+   */
+  abandon() {
+    this._cleanup({ notify: false });
   }
 
   _handleDisconnect() {
     this.log('Disconnected', 'warn');
-    this._cleanup();
+    this._cleanup({ notify: true });
   }
 
-  _cleanup() {
+  _cleanup({ notify = true } = {}) {
+    const meta = {
+      id: this.device?.id || null,
+      name: this.device?.name || null,
+    };
     this.writeChar = null;
     this.notifyChar = null;
     this.server = null;
@@ -217,6 +232,6 @@ export class SuperBandBle {
     if (this.device) {
       this.device.removeEventListener('gattserverdisconnected', this._boundDisconnect);
     }
-    this.onConnectionChange(false);
+    if (notify) this.onConnectionChange(false, meta);
   }
 }

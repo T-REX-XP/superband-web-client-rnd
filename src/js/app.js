@@ -15,20 +15,84 @@ function setPill(el, text, state = '') {
   else delete el.dataset.state;
 }
 
-function setConnected(on) {
+function syncConnectionChrome() {
+  const n = client.sessionCount;
+  const on = n > 0 && client.connected;
   $$('[data-need-conn]').forEach((b) => {
     b.disabled = !on;
   });
-  $('#btnConnect').hidden = on;
-  $('#btnConnectAny').hidden = on;
-  $('#btnDisconnect').hidden = !on;
-  setPill(
-    $('#connPill'),
-    on ? `Connected · ${client.name || 'badge'}` : 'Disconnected',
-    on ? 'ok' : '',
-  );
+
+  // Always allow adding another device while Web Bluetooth works
+  $('#btnConnect').hidden = false;
+  $('#btnConnectAny').hidden = false;
+  $('#btnConnect').textContent = n ? 'Add badge' : 'Connect badge';
+  $('#btnConnectAny').textContent = n ? 'Add other' : 'Other device';
+  $('#btnAddBadge').hidden = n === 0;
+  $('#btnDisconnect').hidden = n === 0;
+  $('#btnDisconnectAll').hidden = n < 2;
+  $('#btnPushAll').hidden = n < 2;
+
+  const label =
+    n === 0
+      ? 'Disconnected'
+      : n === 1
+        ? `Connected · ${client.name || 'badge'}`
+        : `${n} badges · active ${client.name || '—'}`;
+  setPill($('#connPill'), label, n ? 'ok' : '');
   $('#deviceGlance').hidden = !on;
+  $('#deviceRail').hidden = n === 0;
+  $('#deviceCount').textContent = String(n);
   updatePushChecklist();
+}
+
+function renderDeviceChips() {
+  const box = $('#deviceChips');
+  box.innerHTML = '';
+  for (const s of client.sessions) {
+    const chip = document.createElement('div');
+    chip.className = 'device-chip' + (s.active ? ' active' : '');
+    chip.dataset.id = s.id;
+
+    const main = document.createElement('button');
+    main.type = 'button';
+    main.className = 'device-chip-main';
+    main.title = 'Make active';
+    const title = s.name || 'Badge';
+    const sub = [s.firmware, s.battery != null ? `${s.battery}%` : null].filter(Boolean).join(' · ');
+    main.innerHTML = `<span class="chip-name"></span><span class="chip-sub"></span>`;
+    main.querySelector('.chip-name').textContent = title + (s.active ? ' · active' : '');
+    main.querySelector('.chip-sub').textContent = sub || s.id.slice(0, 8);
+    main.addEventListener('click', () => {
+      try {
+        client.setActive(s.id);
+        toast(`Active: ${client.name || s.id}`, 'ok');
+        client.requestMediaList().catch((e) => {
+          log({ msg: `Media list: ${e.message}`, level: 'warn' });
+        });
+      } catch (e) {
+        toast(e.message, 'err');
+      }
+    });
+
+    const x = document.createElement('button');
+    x.type = 'button';
+    x.className = 'device-chip-x';
+    x.title = 'Disconnect this badge';
+    x.textContent = '×';
+    x.addEventListener('click', async (ev) => {
+      ev.stopPropagation();
+      try {
+        await client.disconnect(s.id);
+        toast('Badge disconnected', 'ok');
+      } catch (e) {
+        toast(e.message, 'err');
+      }
+    });
+
+    chip.appendChild(main);
+    chip.appendChild(x);
+    box.appendChild(chip);
+  }
 }
 
 function log({ msg, level = 'info' }) {
@@ -70,8 +134,7 @@ function dash(v) {
 
 function renderSnapshot(snap) {
   const s = snap || client.getSnapshot();
-  const battery =
-    s.battery == null ? '—' : `${s.battery}%`;
+  const battery = s.battery == null ? '—' : `${s.battery}%`;
 
   const fields = {
     name: dash(s.name),
@@ -107,21 +170,24 @@ function renderSnapshot(snap) {
 
   if (s.mediaId != null) {
     $('#mediaIdPill').textContent = `Media ID ${s.mediaId}`;
+  } else if (!s.connected) {
+    $('#mediaIdPill').textContent = 'Media ID —';
   }
 }
 
 function updatePushChecklist() {
   const connected = client.connected;
   const imageReady = !!prepared;
-  const idle = !transferring;
+  const idle = !transferring && !client.active?.getSnapshot()?.transferring;
   const map = { conn: connected, image: imageReady, idle };
   for (const [key, ok] of Object.entries(map)) {
     const li = document.querySelector(`[data-check="${key}"]`);
     if (!li) continue;
     li.dataset.ok = ok ? '1' : '0';
   }
-  const btn = $('#btnPush');
-  btn.disabled = !(connected && imageReady && idle);
+  const canPush = connected && imageReady && idle;
+  $('#btnPush').disabled = !canPush;
+  $('#btnPushAll').disabled = !(client.sessionCount >= 2 && imageReady && idle);
 }
 
 function renderMediaList(items) {
@@ -162,16 +228,24 @@ async function connect(acceptAll) {
   try {
     setPill($('#connPill'), 'Connecting…', 'busy');
     await client.connect({ acceptAll });
-    setConnected(true);
+    syncConnectionChrome();
+    renderDeviceChips();
     renderSnapshot();
-    toast('Badge connected', 'ok');
-    // Best-effort media list — failures are non-fatal for push.
+    toast(
+      client.sessionCount > 1
+        ? `Added · ${client.sessionCount} badges connected`
+        : 'Badge connected',
+      'ok',
+    );
     client.requestMediaList().catch((e) => {
       log({ msg: `Media list: ${e.message}`, level: 'warn' });
     });
   } catch (e) {
-    setConnected(false);
-    setPill($('#connPill'), 'Connect failed', 'err');
+    syncConnectionChrome();
+    renderDeviceChips();
+    if (!client.sessionCount) {
+      setPill($('#connPill'), 'Connect failed', 'err');
+    }
     toast(e.message, 'err');
     log({ msg: e.message, level: 'err' });
   }
@@ -233,11 +307,11 @@ async function pushImage() {
       },
     });
     toast(
-      result.verified === false ? 'Uploaded (verify unclear)' : 'Image pushed',
+      result.verified === false ? 'Uploaded (verify unclear)' : `Pushed to ${client.name || 'badge'}`,
       'ok',
     );
     log({
-      msg: `Push complete mediaId=${result.mediaId} crc=0x${result.checksum.toString(16)}`,
+      msg: `Push complete → ${client.name || result.sessionId} mediaId=${result.mediaId} crc=0x${result.checksum.toString(16)}`,
       level: 'ok',
     });
     $('#mediaIdPill').textContent = `Media ID ${result.mediaId}`;
@@ -254,15 +328,93 @@ async function pushImage() {
   }
 }
 
+async function pushAll() {
+  if (client.sessionCount < 2) {
+    toast('Connect at least two badges', 'err');
+    return;
+  }
+  if (!prepared) {
+    toast('Choose an image first', 'err');
+    return;
+  }
+  const bar = $('#pushBar');
+  const wrap = $('#pushProgress');
+  wrap.hidden = false;
+  bar.style.width = '0%';
+  transferring = true;
+  updatePushChecklist();
+  try {
+    const functionType = Number($('#functionType').value) || FunctionType.BACKGROUND;
+    const results = await client.transferFileToAll(prepared.bytes, {
+      fileType: FileType.IMAGE,
+      functionType,
+      allocateId: $('#allocMedia').checked,
+      onProgress: (pct) => {
+        bar.style.width = `${pct}%`;
+      },
+    });
+    const ok = results.filter((r) => r.ok).length;
+    const fail = results.length - ok;
+    toast(
+      fail ? `Pushed to ${ok}/${results.length} badges` : `Pushed to all ${ok} badges`,
+      fail ? 'err' : 'ok',
+    );
+    for (const r of results) {
+      log({
+        msg: r.ok
+          ? `Push OK → ${r.name || r.sessionId} mediaId=${r.mediaId}`
+          : `Push fail → ${r.name || r.sessionId}: ${r.error}`,
+        level: r.ok ? 'ok' : 'err',
+      });
+    }
+    renderSnapshot();
+    client.requestMediaList().catch(() => {});
+  } catch (e) {
+    toast(e.message, 'err');
+    log({ msg: e.message, level: 'err' });
+  } finally {
+    transferring = false;
+    updatePushChecklist();
+    setTimeout(() => {
+      wrap.hidden = true;
+    }, 900);
+  }
+}
+
+function clearActiveUi() {
+  renderSnapshot({
+    name: null,
+    model: null,
+    firmware: null,
+    hardware: null,
+    software: null,
+    manufacturer: null,
+    battery: null,
+    protocol: null,
+    freeStorage: null,
+    storageCapacity: null,
+    mediaId: null,
+  });
+  $('#mediaList').innerHTML = '<div class="empty">Connect and refresh to load media.</div>';
+  $('#mediaIdPill').textContent = 'Media ID —';
+}
+
 function bind() {
   $('#btnConnect').addEventListener('click', () => connect(false));
   $('#btnConnectAny').addEventListener('click', () => connect(true));
-  $('#btnDisconnect').addEventListener('click', () => client.disconnect());
+  $('#btnAddBadge').addEventListener('click', () => connect(false));
+  $('#btnDisconnect').addEventListener('click', () =>
+    client.disconnect().then(() => toast('Disconnected', 'ok')),
+  );
+  $('#btnDisconnectAll').addEventListener('click', () =>
+    client.disconnectAll().then(() => toast('All badges disconnected', 'ok')),
+  );
   $('#btnRefresh').addEventListener('click', () =>
     client
       .refreshIdentity()
       .then(() => {
         renderSnapshot();
+        renderDeviceChips();
         toast('Device info refreshed', 'ok');
       })
       .catch((e) => toast(e.message, 'err')),
@@ -276,6 +428,7 @@ function bind() {
   $('#dialH').addEventListener('change', () => rebuildPreview());
   $('#roundMask').addEventListener('change', () => rebuildPreview());
   $('#btnPush').addEventListener('click', () => pushImage());
+  $('#btnPushAll').addEventListener('click', () => pushAll());
   $('#btnMediaList').addEventListener('click', () =>
     client.requestMediaList().catch((e) => {
       toast(e.message, 'err');
@@ -296,34 +449,41 @@ function bind() {
   });
 
   client.addEventListener('log', (e) => log(e.detail));
+  client.addEventListener('sessions', () => {
+    syncConnectionChrome();
+    renderDeviceChips();
+  });
   client.addEventListener('connection', (e) => {
-    setConnected(e.detail.connected);
-    if (!e.detail.connected) {
-      renderSnapshot({
-        name: null,
-        model: null,
-        firmware: null,
-        hardware: null,
-        software: null,
-        manufacturer: null,
-        battery: null,
-        protocol: null,
-        freeStorage: null,
-        storageCapacity: null,
-        mediaId: null,
-      });
-      $('#mediaList').innerHTML = '<div class="empty">Connect and refresh to load media.</div>';
-      $('#mediaIdPill').textContent = 'Media ID —';
+    syncConnectionChrome();
+    renderDeviceChips();
+    if (!e.detail.connected && client.sessionCount === 0) {
+      clearActiveUi();
+    } else {
+      renderSnapshot();
     }
   });
-  client.addEventListener('snapshot', (e) => renderSnapshot(e.detail.snapshot));
+  client.addEventListener('snapshot', (e) => {
+    if (!e.detail.sessionId || e.detail.sessionId === client.activeId) {
+      renderSnapshot(e.detail.snapshot);
+    }
+    renderDeviceChips();
+  });
   client.addEventListener('deviceinfo', () => renderSnapshot());
   client.addEventListener('disinfo', () => renderSnapshot());
-  client.addEventListener('battery', () => renderSnapshot());
-  client.addEventListener('mediaid', (e) => {
-    $('#mediaIdPill').textContent = `Media ID ${e.detail.mediaId}`;
+  client.addEventListener('battery', () => {
+    renderSnapshot();
+    renderDeviceChips();
   });
-  client.addEventListener('medialist', (e) => renderMediaList(e.detail.items));
+  client.addEventListener('mediaid', (e) => {
+    if (!e.detail.sessionId || e.detail.sessionId === client.activeId) {
+      $('#mediaIdPill').textContent = `Media ID ${e.detail.mediaId}`;
+    }
+  });
+  client.addEventListener('medialist', (e) => {
+    if (!e.detail.sessionId || e.detail.sessionId === client.activeId) {
+      renderMediaList(e.detail.items);
+    }
+  });
 }
 
 function initSupport() {
@@ -332,6 +492,7 @@ function initSupport() {
     setPill($('#blePill'), 'Needs HTTPS (or localhost)', 'err');
     $('#btnConnect').disabled = true;
     $('#btnConnectAny').disabled = true;
+    $('#btnAddBadge').disabled = true;
     log({
       msg: 'Insecure context — Web Bluetooth is blocked. Use GitHub Pages HTTPS or localhost.',
       level: 'err',
@@ -344,6 +505,7 @@ function initSupport() {
     setPill($('#blePill'), 'Web Bluetooth unavailable', 'err');
     $('#btnConnect').disabled = true;
     $('#btnConnectAny').disabled = true;
+    $('#btnAddBadge').disabled = true;
   }
 }
 
@@ -382,6 +544,9 @@ async function initBuildMeta() {
 bind();
 initSupport();
 initBuildMeta();
-setConnected(false);
+syncConnectionChrome();
 updatePushChecklist();
-log({ msg: 'SuperBand manager ready. Connect a badge to begin.', level: 'info' });
+log({
+  msg: 'SuperBand manager ready. Connect one or more badges (each Add opens the picker).',
+  level: 'info',
+});

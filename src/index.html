@@ -43,7 +43,16 @@
           <span class="status-pill" id="blePill">Checking Bluetooth…</span>
           <button class="primary" id="btnConnect">Connect badge</button>
           <button class="ghost" id="btnConnectAny">Other device</button>
+          <button class="ghost" id="btnAddBadge" hidden>Add another</button>
           <button class="danger" id="btnDisconnect" hidden>Disconnect</button>
+          <button class="danger" id="btnDisconnectAll" hidden>Disconnect all</button>
+        </div>
+        <div class="device-rail" id="deviceRail" hidden>
+          <div class="device-rail-head">
+            <span>Connected badges</span>
+            <span class="muted" id="deviceCount">0</span>
+          </div>
+          <div class="device-chips" id="deviceChips"></div>
         </div>
         <div class="glance" id="deviceGlance" hidden>
           <div class="glance-item">
@@ -134,7 +143,8 @@
               <div class="row">
                 <input class="file-input" id="imageInput" type="file" accept="image/*" />
                 <button type="button" id="btnPickImage">Choose image</button>
-                <button class="primary" data-need-conn disabled id="btnPush">Push to badge</button>
+                <button class="primary" data-need-conn disabled id="btnPush">Push to active</button>
+                <button data-need-conn disabled id="btnPushAll" hidden>Push to all</button>
               </div>
             </div>
             <div class="row">
