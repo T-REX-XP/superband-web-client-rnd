@@ -98,5 +98,6 @@ Outputs land under `research/firmware/analysis/` (gitignored with `research/firm
 ## Related
 
 - [Firmware OTA](ota-firmware.md) — download URLs / catalog keys
+- [Security research](security.md) — OTA / flash attack surface
 - [GATT](gatt.md) — UART `7E40…`, JieLi OTA `AE00`
 - [RnD investigation](../rnd-investigation.md)

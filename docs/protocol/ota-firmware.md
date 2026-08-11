@@ -87,9 +87,15 @@ Related but **not** confirmed as the same SKU: `LJ755` / `LJ760` (BJ089 watch-cl
 ./tools/download-firmware.sh --preset bj1
 ./tools/download-firmware.sh --version V32172 --name BJ-1
 bun tools/probe-ota.mjs --name BJ-1 --version V32172
+
+# Prepare + send OTA (BLE AE00 via openwearota; see risks)
+./tools/send-ota.sh --preset bj1 --prepare
+./tools/send-ota.sh --scan
+./tools/send-ota.sh --preset bj1 --ble --address AA:BB:CC:DD:EE:FF
+./tools/send-ota.sh --usb-hint
 ```
 
-Zips unpack under `research/firmware/` (gitignored). See [tools/README.md](../../tools/README.md).
+Zips unpack under `research/firmware/` (gitignored). See [tools/README.md](../../tools/README.md) and [Security research](security.md).
 
 ## How to check a live badge
 
@@ -117,6 +123,7 @@ Do **not** flash a zip meant for another catalog product (`LJ755`, glass, etc.) 
 
 ## Related docs
 
+- [Security research](security.md) — public CDN, hardcoded token, UART/USB risks
 - [Firmware hardware](firmware-hw.md) — AC707N SoC, CST816D, flash map
 - [GATT](gatt.md) — `AE00` / DIS UUIDs
 - [RnD investigation](../rnd-investigation.md)

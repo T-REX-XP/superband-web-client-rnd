@@ -41,7 +41,11 @@ import {
   describeFitProDial,
   dialChunkSize,
   fitproByteSum,
+  looksLikeFitProBadge,
+  buildLegacyProbe,
 } from './fitpro.js';
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /**
  * One connected badge (GATT session + Baji / FitPro waiters).
@@ -223,6 +227,16 @@ class BadgeSession {
     this._emit('disinfo', { info: this.disInfo });
     this.hub._emitSnapshot();
 
+    // BJ-1 / DG01: Baji DEVICE_INFO times out; DIAL_INFO (0x20) often drops GATT.
+    // Match the Android post-connect path: legacy 0x1A probes, then FitPro dial31 for push.
+    if (looksLikeFitProBadge(this.name)) {
+      this.protocolMode = 'fitpro';
+      this._log('Protocol: FitPro dial31 (GAP name heuristic — skipping Baji / dial-info probes)', 'ok');
+      await this._fitProHandshake();
+      this.hub._emitSnapshot();
+      return this.getSnapshot();
+    }
+
     try {
       await this.refreshDeviceInfo({ timeoutMs: 6000 });
       this.protocolMode = 'baji';
@@ -230,17 +244,36 @@ class BadgeSession {
     } catch (e) {
       this.protocolMode = 'fitpro';
       this._log(
-        `Baji device info unavailable (${e.message}) — FitPro dial path (no Baji media probes)`,
+        `Baji device info unavailable (${e.message}) — FitPro dial path (no dial-info probe)`,
         'warn',
       );
-      try {
-        await this.refreshDialInfo({ timeoutMs: 8000 });
-      } catch (e2) {
-        this._log(`Dial info unavailable (${e2.message}) — push will use defaults`, 'warn');
-      }
+      if (this.connected) await this._fitProHandshake();
     }
     this.hub._emitSnapshot();
     return this.getSnapshot();
+  }
+
+  /**
+   * Android zl.java after DeviceFunctionEvent: D(10), D(12), capability D(28).
+   * Best-effort — ignore failures; do not query dial info (crashes BJ-1).
+   */
+  async _fitProHandshake() {
+    if (!this.connected) return;
+    const cmds = [
+      [FitPro.LegacyCmd.PROBE_A, 'LEGACY_1A/10'],
+      [FitPro.LegacyCmd.PROBE_B, 'LEGACY_1A/12'],
+      [FitPro.LegacyCmd.CAPABILITY, 'LEGACY_1A/28'],
+    ];
+    for (const [cmd, label] of cmds) {
+      if (!this.connected) break;
+      try {
+        await this.write(buildLegacyProbe(cmd), label);
+        await sleep(120);
+      } catch (e) {
+        this._log(`${label} failed: ${e.message}`, 'warn');
+        break;
+      }
+    }
   }
 
   async disconnect() {
@@ -334,16 +367,25 @@ class BadgeSession {
     return info;
   }
 
-  async _waitDialStatus(expectedCode, { timeoutMs = 15000, label = 'DIAL_STATUS' } = {}) {
+  /**
+   * Wait for dial status. Default: listen only (no 0x20 polls — those disconnect BJ-1).
+   * Set poll=true to mirror WatchTheme3Tools.L() on devices that tolerate it.
+   */
+  async _waitDialStatus(
+    expectedCode,
+    { timeoutMs = 15000, label = 'DIAL_STATUS', poll = false } = {},
+  ) {
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
+      if (!this.connected) throw new Error('Disconnected while waiting for dial status');
       const remain = Math.max(200, deadline - Date.now());
       const pending = this._waitFor(
         (p) => isFitProDialStatusPacket(p) && parseDialStatusCode(p.payload) != null,
-        { timeoutMs: Math.min(2500, remain), label },
+        { timeoutMs: Math.min(poll ? 2500 : remain, remain), label },
       );
-      // Poll status while waiting (WatchTheme3Tools.L).
-      this.write(buildDialStatusRequest(), 'DIAL_STATUS_POLL').catch(() => {});
+      if (poll) {
+        this.write(buildDialStatusRequest(), 'DIAL_STATUS_POLL').catch(() => {});
+      }
       try {
         const pkt = await pending;
         const code = parseDialStatusCode(pkt.payload);
@@ -351,12 +393,25 @@ class BadgeSession {
         if (code >= 1 && code <= 9) {
           throw new Error(`Dial upgrade error status=${code}`);
         }
-        // Other progress codes — keep waiting for expectedCode.
       } catch (e) {
         if (String(e.message || '').startsWith('Dial upgrade error')) throw e;
+        if (String(e.message || '').includes('Disconnected')) throw e;
+        if (!poll) break;
       }
     }
     throw new Error(`Timeout waiting for ${label} (code ${expectedCode})`);
+  }
+
+  /** Soft wait: success on status, else continue after timeout (paced upload). */
+  async _awaitDialStatusOrContinue(expectedCode, { timeoutMs = 800, label = 'DIAL_STATUS' } = {}) {
+    try {
+      await this._waitDialStatus(expectedCode, { timeoutMs, label, poll: false });
+      return true;
+    } catch (e) {
+      if (String(e.message || '').startsWith('Dial upgrade error')) throw e;
+      if (!this.connected) throw e;
+      return false;
+    }
   }
 
   async queryTransferStatus() {
@@ -489,33 +544,20 @@ class BadgeSession {
    */
   async transferDialFile(fileBytes, { onProgress = null } = {}) {
     if (this._transferring) throw new Error('Transfer already in progress on this badge');
+    if (!this.connected) throw new Error('Not connected');
     this._transferring = true;
     this.hub._emitSessions();
 
     try {
-      if (!this.dialInfo) {
-        try {
-          await this.refreshDialInfo({ timeoutMs: 8000 });
-        } catch (e) {
-          this._log(`Dial info probe failed (${e.message}) — continuing with JPEG defaults`, 'warn');
-        }
-      }
-
+      // Do not send DIAL_INFO (0x20) — drops BJ-1. Use DIS/defaults (JPEG dial type 2).
       const info = this.dialInfo;
-      if (info && !info.jpeg && info.algorithm !== 4) {
-        this._log(
-          `Dial algorithm=${info.algorithm} (app uses native BmpConvert); trying JPEG anyway`,
-          'warn',
-        );
-      }
-
-      const dialType = info?.algorithm === 4 ? 2 : info?.dialType === 2 ? 2 : 2;
+      const dialType = 2;
       const fileBlob = buildDialFileBlob(fileBytes);
       const chunkSize = dialChunkSize(info);
       const checksum = fitproByteSum(fileBlob);
 
       this._log(
-        `Dial31 push size=${fileBlob.length} (img=${fileBytes.length}) chunk=${chunkSize} type=${dialType}`,
+        `Dial31 push size=${fileBlob.length} (img=${fileBytes.length}) chunk=${chunkSize} type=${dialType} (no dial-info probe)`,
         'info',
       );
       this._emit('transfer', {
@@ -527,37 +569,44 @@ class BadgeSession {
       });
       onProgress?.(2);
 
+      if (this.connected) await this._fitProHandshake();
+      await sleep(200);
+
       const startPayload = buildDialStartPayload({
         dialId: FitPro.PICTURE_DIAL_ID,
         dialType,
         fileSize: fileBlob.length,
       });
       await this.write(buildDialStart(startPayload), 'DIAL_START');
-      await this._waitDialStatus(FitPro.STATUS_CHUNK_BASE, {
-        timeoutMs: 20000,
+      // Prefer spontaneous status; fall back to paced send (no 0x20 polls).
+      const startAck = await this._awaitDialStatusOrContinue(FitPro.STATUS_CHUNK_BASE, {
+        timeoutMs: 1500,
         label: 'DIAL_START_ACK(1000)',
       });
+      if (!startAck) this._log('No start ACK — continuing paced dial upload', 'warn');
       onProgress?.(5);
 
       const totalChunks = Math.max(1, Math.ceil(fileBlob.length / chunkSize));
       for (let i = 0; i < totalChunks; i++) {
+        if (!this.connected) throw new Error('Disconnected during dial upload');
         const start = i * chunkSize;
         const end = Math.min(start + chunkSize, fileBlob.length);
         const slice = fileBlob.slice(start, end);
         const seq = i + 1;
         await this.write(buildDialDataChunk(seq, slice), `DIAL_DATA[${seq}]`);
-        await this._waitDialStatus(FitPro.STATUS_CHUNK_BASE + seq, {
-          timeoutMs: 20000,
+        await this._awaitDialStatusOrContinue(FitPro.STATUS_CHUNK_BASE + seq, {
+          timeoutMs: 400,
           label: `DIAL_CHUNK_ACK(${FitPro.STATUS_CHUNK_BASE + seq})`,
         });
+        await sleep(12);
         const pct = 5 + Math.round(((i + 1) / totalChunks) * 90);
         onProgress?.(pct, i + 1, totalChunks);
         this._emit('transfer', { phase: 'chunk', index: i, total: totalChunks, percent: pct });
       }
 
       await this.write(buildDialFinish(fileBlob), 'DIAL_FINISH');
-      await this._waitDialStatus(FitPro.STATUS_OK, {
-        timeoutMs: 30000,
+      const finished = await this._awaitDialStatusOrContinue(FitPro.STATUS_OK, {
+        timeoutMs: 5000,
         label: 'DIAL_FINISH_OK(2)',
       });
       onProgress?.(100, totalChunks, totalChunks);
@@ -565,14 +614,14 @@ class BadgeSession {
         phase: 'complete',
         mediaId: FitPro.PICTURE_DIAL_ID,
         checksum,
-        verified: true,
+        verified: finished,
         path: 'fitpro-dial31',
       });
       return {
         fileId: FitPro.PICTURE_DIAL_ID,
         mediaId: FitPro.PICTURE_DIAL_ID,
         checksum,
-        verified: true,
+        verified: finished,
         sessionId: this.id,
         path: 'fitpro-dial31',
       };
@@ -724,6 +773,13 @@ export class SuperBandClient extends EventTarget {
       session.ble = null;
       this.setActive(existing.id);
       return existing;
+    }
+
+    if (!session.connected) {
+      session.ble?.abandon?.();
+      throw new Error(
+        `${session.name || 'Badge'} dropped during identity probe — reconnect and retry`,
+      );
     }
 
     this._sessions.set(session.id, session);

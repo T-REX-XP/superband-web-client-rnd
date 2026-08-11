@@ -66,9 +66,11 @@ function renderDeviceChips() {
       try {
         client.setActive(s.id);
         toast(`Active: ${client.name || s.id}`, 'ok');
-        client.requestMediaList().catch((e) => {
-          log({ msg: `Media list: ${e.message}`, level: 'warn' });
-        });
+        if (client.getSnapshot().protocolMode === 'baji') {
+          client.requestMediaList().catch((e) => {
+            log({ msg: `Media list: ${e.message}`, level: 'warn' });
+          });
+        }
       } catch (e) {
         toast(e.message, 'err');
       }
@@ -245,9 +247,14 @@ async function connect(acceptAll) {
         : 'Badge connected',
       'ok',
     );
-    client.requestMediaList().catch((e) => {
-      log({ msg: `Media list: ${e.message}`, level: 'warn' });
-    });
+    const snap = client.getSnapshot();
+    if (snap.protocolMode === 'baji') {
+      client.requestMediaList().catch((e) => {
+        log({ msg: `Media list: ${e.message}`, level: 'warn' });
+      });
+    } else if (snap.protocolMode === 'fitpro') {
+      log({ msg: 'FitPro badge — media library skipped (use Push for dial31 upload)', level: 'info' });
+    }
   } catch (e) {
     syncConnectionChrome();
     renderDeviceChips();

@@ -9,6 +9,7 @@ node_modules/
 dist/
 src/dist/
 src/node_modules/
+tools/.venv-ota/
 
 # Misc
 *.log

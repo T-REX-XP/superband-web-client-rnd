@@ -8,11 +8,13 @@ Sending Baji `MEDIA_*` or `FILE_TRANSFER` frames to these devices often times ou
 
 | Probe | BJ-1 / FitPro-only | Baji badge |
 |-------|--------------------|------------|
+| GAP name `BJ*` / `DG*` / `*BadgeOK*` | treat as FitPro immediately | — |
 | Legacy pair `CD … 12 01 0A …` | `0xDC` ack | often `0xDC` too |
-| Baji `DEVICE_INFO_REQUEST` | timeout | `DEVICE_INFO_RESPONSE` |
-| FitPro dial info `CD … 20 01 02` | dial dimensions / algorithm | may also answer |
+| Legacy `0x1A` D(10)/D(12)/D(28) | best-effort handshake | same |
+| Baji `DEVICE_INFO_REQUEST` | **skip** on BJ/DG (timeout only) | `DEVICE_INFO_RESPONSE` |
+| FitPro dial info `CD … 20 01 02` | **do not auto-send** — drops BJ-1 GATT | may answer |
 
-The manager treats a failed Baji device-info probe as **FitPro mode** and never auto-sends Baji media list/id.
+The manager uses the GAP name heuristic for SuperBand badges, sends legacy `0x1A` probes, and never auto-sends Baji media or dial-info on those devices.
 
 ## Framing
 

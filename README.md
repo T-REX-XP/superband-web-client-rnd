@@ -8,8 +8,8 @@ Unofficial RnD investigation of the **SuperBand / electronic badge** Bluetooth L
 | Piece | Path | Purpose |
 |-------|------|---------|
 | Application sources | [`src/`](src/) | Bun Web Bluetooth manager + debug console |
-| Protocol docs | [`docs/`](docs/) | GATT, framing, media, file transfer, OTA |
-| Tools | [`tools/`](tools/) | Download firmware, unpack APK, probe OTA catalog |
+| Protocol docs | [`docs/`](docs/) | GATT, framing, media, dial push, OTA, security |
+| Tools | [`tools/`](tools/) | Download / analyze / **send OTA**, unpack APK |
 | Artifacts | [`artifacts/`](artifacts/) | Local APKs (gitignored) |
 | Research | [`research/`](research/) | Unpacked client + firmware zips (gitignored) |
 
@@ -24,7 +24,7 @@ Changelog: [CHANGELOG.md](CHANGELOG.md)
 ├── src/                   # All application sources
 │   ├── js/ css/ …         # Primary Web Bluetooth manager (Bun)
 │   └── debug-console/     # Low-level protocol console
-├── tools/                 # Firmware download + APK unpack helpers
+├── tools/                 # Firmware download, send-ota, APK unpack helpers
 ├── docs/                  # Protocol + usage documentation
 ├── artifacts/             # Local APK bundles (not committed)
 ├── research/              # Unpacked/jadx + firmware (not committed)
@@ -112,24 +112,28 @@ python3 -m http.server 8765
 ```bash
 ./tools/download-firmware.sh --preset all          # DG01 + BJ-1 SuperBand zips
 ./tools/download-firmware.sh --preset bj1          # BJ-1 package
+./tools/send-ota.sh --preset bj1 --prepare         # zip → app.ufw
+./tools/send-ota.sh --scan                         # BLE scan (venv auto-created)
+./tools/send-ota.sh --preset bj1 --ble --address AA:BB:CC:DD:EE:FF
 ./tools/unpack-apk.sh                              # artifacts/*.apks → research/unpacked/
 bun tools/probe-ota.mjs --name BJ-1 --version V32172
 ```
 
-Details: [tools/README.md](tools/README.md) · [Firmware OTA](docs/protocol/ota-firmware.md)
+Details: [tools/README.md](tools/README.md) · [Firmware OTA](docs/protocol/ota-firmware.md) · [Security](docs/protocol/security.md)
 
 ## Documentation
 
 | Doc | Description |
 |-----|-------------|
 | [Getting started](docs/getting-started.md) | Layout, Bun, connect a badge |
-| [Tools](tools/README.md) | Firmware download + APK unpack |
+| [Tools](tools/README.md) | Firmware download, send-ota, APK unpack |
 | [Protocol overview](docs/protocol/overview.md) | Architecture |
 | [GATT](docs/protocol/gatt.md) | UUIDs / TX / RX |
 | [Framing](docs/protocol/framing.md) | Packet layout |
 | [File transfer](docs/protocol/file-transfer.md) | Chunked upload + CRC32 |
 | [Media](docs/protocol/media.md) | IDs, list, delete |
 | [Firmware OTA](docs/protocol/ota-firmware.md) | JieLi OTA catalog + zip URLs |
+| [Security research](docs/protocol/security.md) | OTA / UART / CDN risk findings |
 | [Firmware hardware](docs/protocol/firmware-hw.md) | AC707N SoC / peripherals from UFW |
 | [Commands](docs/protocol/commands.md) | Opcode tables |
 | [RnD investigation](docs/rnd-investigation.md) | Reference client notes |

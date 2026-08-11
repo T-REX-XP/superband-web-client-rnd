@@ -8,6 +8,8 @@ import { PROTOCOL, toHex } from './protocol.js';
 export const FitPro = {
   DIAL_MODULE: 0x1f,
   DIAL_INFO_MODULE: 0x20,
+  /** Legacy MyWatch probes (qm2.D) sent after DeviceFunctionEvent path */
+  LEGACY_MODULE: 0x1a,
   /** Picture-push dial id used by SuperBand WatchThemeTransferManager */
   PICTURE_DIAL_ID: 5538,
   DialCmd: {
@@ -19,6 +21,12 @@ export const FitPro = {
     STATUS: 1,
     INFO: 2,
   },
+  LegacyCmd: {
+    /** zl.java post-connect: D(10), D(12), D(28) */
+    PROBE_A: 10,
+    PROBE_B: 12,
+    CAPABILITY: 28,
+  },
   /** Status band: 1000 + seq → ACK for chunk seq (0 = start ready) */
   STATUS_CHUNK_BASE: 1000,
   STATUS_OK: 2,
@@ -27,6 +35,13 @@ export const FitPro = {
   MAX_CHUNK: 180,
   DEFAULT_CHUNK: 180,
 };
+
+/** GAP names that speak FitPro dial / crash on Baji media + dial-info probes. */
+export function looksLikeFitProBadge(name) {
+  if (!name) return false;
+  const n = String(name);
+  return /^(BJ|DG)/i.test(n) || /BadgeOK|SuperBand|_V\d/i.test(n);
+}
 
 function putU16BE(out, offset, value) {
   out[offset] = (value >> 8) & 0xff;
@@ -140,6 +155,11 @@ export function buildDialInfoRequest() {
 
 export function buildDialStatusRequest() {
   return buildFitProFrame(FitPro.DIAL_INFO_MODULE, FitPro.InfoCmd.STATUS);
+}
+
+/** Short legacy probe: CD 00 05 1A 01 {cmd} 00 00 */
+export function buildLegacyProbe(cmd) {
+  return buildFitProFrame(FitPro.LEGACY_MODULE, cmd);
 }
 
 export function buildDialStart(startPayload) {

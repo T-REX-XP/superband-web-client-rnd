@@ -13,6 +13,9 @@ This file is the short entry point for the SuperBand / Baji BLE protocol. **Full
 | File transfer | [protocol/file-transfer.md](protocol/file-transfer.md) |
 | Command tables | [protocol/commands.md](protocol/commands.md) |
 | Hex examples | [protocol/examples.md](protocol/examples.md) |
+| Dial upload (FitPro) | [protocol/dial-upload.md](protocol/dial-upload.md) |
+| Firmware OTA | [protocol/ota-firmware.md](protocol/ota-firmware.md) |
+| Security research | [protocol/security.md](protocol/security.md) |
 | Web console | [web-console.md](web-console.md) |
 | RnD notes | [rnd-investigation.md](rnd-investigation.md) |
 | Docs home | [README.md](README.md) |
