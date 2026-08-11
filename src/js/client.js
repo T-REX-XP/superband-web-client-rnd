@@ -34,6 +34,7 @@ export class SuperBandClient extends EventTarget {
     super();
     this.ble = null;
     this.deviceInfo = null;
+    this.disInfo = null;
     this.battery = null;
     this.mediaId = null;
     this._fileId = 1n;
@@ -47,6 +48,33 @@ export class SuperBandClient extends EventTarget {
 
   get name() {
     return this.ble?.device?.name || this.deviceInfo?.name || null;
+  }
+
+  /** Merged glance snapshot for the UI (DIS + Baji + battery). */
+  getSnapshot() {
+    const dis = this.disInfo || {};
+    const baji = this.deviceInfo || {};
+    return {
+      connected: this.connected,
+      name: this.name,
+      model: dis.model || baji.name || null,
+      firmware: dis.firmware || baji.deviceVersion || null,
+      hardware: dis.hardware || null,
+      software: dis.software || null,
+      manufacturer: dis.manufacturer || null,
+      serial: dis.serial || null,
+      protocol: baji.protocolVersion || null,
+      battery: this.battery,
+      freeStorage: baji.freeStorage ?? null,
+      storageCapacity: baji.storageCapacity ?? null,
+      maxFileSize: baji.maxFileSize ?? null,
+      features: baji.features || null,
+      mediaId: this.mediaId,
+    };
+  }
+
+  _emitSnapshot() {
+    this._emit('snapshot', { snapshot: this.getSnapshot() });
   }
 
   static supported() {
@@ -113,22 +141,42 @@ export class SuperBandClient extends EventTarget {
       onConnectionChange: (on) => {
         if (!on) {
           this.deviceInfo = null;
+          this.disInfo = null;
           this.battery = null;
+          this.mediaId = null;
         }
         this._emit('connection', { connected: on, name: this.name });
+        this._emitSnapshot();
       },
     });
 
     await this.ble.connect({ acceptAll });
+    await this.refreshIdentity();
+    return this;
+  }
+
+  /**
+   * Battery + DIS (always) and best-effort Baji DEVICE_INFO.
+   * Push/media do not require Baji info — DIS is enough for glance fields.
+   */
+  async refreshIdentity() {
     this.battery = await this.ble.readBattery();
     if (this.battery != null) this._emit('battery', { level: this.battery });
 
+    this.disInfo = await this.ble.readDeviceInformation();
+    this._emit('disinfo', { info: this.disInfo });
+    this._emitSnapshot();
+
     try {
-      await this.refreshDeviceInfo();
+      await this.refreshDeviceInfo({ timeoutMs: 6000 });
     } catch (e) {
-      this._log(`Device info: ${e.message}`, 'warn');
+      this._log(
+        `Baji device info unavailable (${e.message}) — using DIS / GAP for details`,
+        'warn',
+      );
     }
-    return this;
+    this._emitSnapshot();
+    return this.getSnapshot();
   }
 
   async disconnect() {
@@ -150,6 +198,7 @@ export class SuperBandClient extends EventTarget {
     const info = parseDeviceInfo(pkt.payload);
     this.deviceInfo = info;
     this._emit('deviceinfo', { info });
+    this._emitSnapshot();
     return info;
   }
 
@@ -167,6 +216,7 @@ export class SuperBandClient extends EventTarget {
     if (!r?.success) throw new Error(r?.message || 'Media ID allocation failed');
     this.mediaId = Number(r.mediaId);
     this._emit('mediaid', { mediaId: this.mediaId, message: r.message });
+    this._emitSnapshot();
     return this.mediaId;
   }
 

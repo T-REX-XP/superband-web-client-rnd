@@ -1,8 +1,8 @@
 /**
- * Prepare images for badge push (default dial 320×384).
+ * Prepare images for badge push (default dial 360×360 — common round IPS badge).
  */
 
-export const DEFAULT_DIAL = { width: 320, height: 384 };
+export const DEFAULT_DIAL = { width: 360, height: 360 };
 
 /**
  * Load a File/Blob into an HTMLImageElement.

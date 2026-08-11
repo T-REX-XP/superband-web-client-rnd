@@ -16,6 +16,14 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 - Firmware OTA investigation notes (`docs/protocol/ota-firmware.md`)
 - `tools/` helpers: `download-firmware.sh`, `unpack-apk.sh`, `probe-ota.mjs`
+- Manager: GitHub / Docs / Issues links; device glance strip (DIS model/FW/HW + battery)
+- GATT Device Information reads so FW/model show when Baji `DEVICE_INFO` is absent (e.g. BJ-1)
+
+### Changed
+
+- Default dial size **360×360**; round mask on by default; push checklist (connected / image / idle)
+- Badge picker filters include `BJ*`, `DG*`, `_V*`, mfg `0xAA01`
+- Pages deploy also publishes `debug-console/`
 
 ### Changed
 

@@ -60,12 +60,16 @@ jobs:
           set -euo pipefail
           mkdir -p _site
           cp -a src/dist/. _site/
+          # Ship debug console beside the manager (static assets, no Bun build)
+          mkdir -p _site/debug-console
+          cp -a src/debug-console/. _site/debug-console/
           VERSION="$(python3 -c "import json; print(json.load(open('src/package.json'))['version'])")"
           cat > _site/version.json <<EOF
           {"version":"${VERSION}","repository":"${{ github.repository }}","built_at":"$(date -u +%Y-%m-%dT%H:%M:%SZ)","source":"pages-workflow","base_path":"${{ steps.base.outputs.path }}"}
           EOF
           test -f _site/index.html
           test -f _site/.nojekyll
+          test -f _site/debug-console/index.html
           head -n 12 _site/index.html
 
       - uses: actions/configure-pages@v6

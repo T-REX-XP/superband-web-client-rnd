@@ -34,12 +34,12 @@ bun run dev
 Open [http://localhost:8787](http://localhost:8787).
 
 1. Click **Connect badge** (or **Other device**)
-2. Select the badge in the browser picker
-3. Review device info / battery on the Device panel
-4. Choose an image → preview on the dial → **Push to badge**
+2. Select the badge in the browser picker (`BJ-1`, `DG01`, `*_BadgeOK`, …)
+3. Confirm the hero glance strip: name, model, firmware, battery
+4. Choose an image → preview on the dial → checklist green → **Push to badge**
 5. Optionally refresh the media library
 
-See [Web client](web-console.md) and [File transfer](protocol/file-transfer.md).
+Repo / docs links are in the hero and footer. See [Web client](web-console.md) and [File transfer](protocol/file-transfer.md).
 
 ### Debug console (optional)
 

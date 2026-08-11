@@ -1,11 +1,13 @@
 import { SuperBandClient, FileType, FunctionType } from './client.js';
-import { prepareFileForBadge, formatBytes } from './image.js';
+import { prepareFileForBadge, formatBytes, DEFAULT_DIAL } from './image.js';
+import { REPO_URL } from './protocol.js';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
 
 const client = new SuperBandClient();
 let prepared = null;
+let transferring = false;
 
 function setPill(el, text, state = '') {
   el.textContent = text;
@@ -25,6 +27,8 @@ function setConnected(on) {
     on ? `Connected · ${client.name || 'badge'}` : 'Disconnected',
     on ? 'ok' : '',
   );
+  $('#deviceGlance').hidden = !on;
+  updatePushChecklist();
 }
 
 function log({ msg, level = 'info' }) {
@@ -60,25 +64,71 @@ function fmtBig(n) {
   return formatBytes(v);
 }
 
-function renderDeviceInfo(info) {
-  const root = $('#deviceStats');
-  root.querySelector('[data-field="name"]').textContent =
-    client.name || info?.name || '—';
-  root.querySelector('[data-field="fw"]').textContent = info?.deviceVersion || '—';
-  root.querySelector('[data-field="proto"]').textContent = info?.protocolVersion || '—';
-  root.querySelector('[data-field="free"]').textContent = fmtBig(info?.freeStorage);
-  root.querySelector('[data-field="cap"]').textContent = fmtBig(info?.storageCapacity);
+function dash(v) {
+  return v == null || v === '' ? '—' : String(v);
 }
 
-function renderBattery(level) {
-  $('#deviceStats').querySelector('[data-field="battery"]').textContent =
-    level == null ? '—' : `${level}%`;
+function renderSnapshot(snap) {
+  const s = snap || client.getSnapshot();
+  const battery =
+    s.battery == null ? '—' : `${s.battery}%`;
+
+  const fields = {
+    name: dash(s.name),
+    model: dash(s.model),
+    firmware: dash(s.firmware),
+    hardware: dash(s.hardware),
+    software: dash(s.software),
+    manufacturer: dash(s.manufacturer),
+    battery,
+    protocol: dash(s.protocol),
+    free: fmtBig(s.freeStorage),
+    cap: fmtBig(s.storageCapacity),
+  };
+
+  for (const [key, val] of Object.entries(fields)) {
+    $$('[data-field="' + key + '"]').forEach((el) => {
+      el.textContent = val;
+    });
+  }
+
+  const glance = {
+    name: fields.name,
+    model: fields.model,
+    firmware: fields.firmware,
+    battery: fields.battery,
+    hardware: fields.hardware,
+    free: fields.free,
+  };
+  for (const [key, val] of Object.entries(glance)) {
+    const el = document.querySelector(`[data-glance="${key}"]`);
+    if (el) el.textContent = val;
+  }
+
+  if (s.mediaId != null) {
+    $('#mediaIdPill').textContent = `Media ID ${s.mediaId}`;
+  }
+}
+
+function updatePushChecklist() {
+  const connected = client.connected;
+  const imageReady = !!prepared;
+  const idle = !transferring;
+  const map = { conn: connected, image: imageReady, idle };
+  for (const [key, ok] of Object.entries(map)) {
+    const li = document.querySelector(`[data-check="${key}"]`);
+    if (!li) continue;
+    li.dataset.ok = ok ? '1' : '0';
+  }
+  const btn = $('#btnPush');
+  btn.disabled = !(connected && imageReady && idle);
 }
 
 function renderMediaList(items) {
   const box = $('#mediaList');
   if (!items?.length) {
-    box.innerHTML = '<div class="empty">No media entries parsed (device may use a different list layout).</div>';
+    box.innerHTML =
+      '<div class="empty">No media entries parsed (device may use a different list layout). Push still works.</div>';
     return;
   }
   box.innerHTML = '';
@@ -92,7 +142,8 @@ function renderMediaList(items) {
       </div>
       <button class="danger" type="button">Delete</button>`;
     row.querySelector('.title').textContent = item.name || `Media ${item.mediaId}`;
-    row.querySelector('.sub').textContent = `id=${item.mediaId} · ${formatBytes(item.fileSize)} · type=${item.fileType}`;
+    row.querySelector('.sub').textContent =
+      `id=${item.mediaId} · ${formatBytes(item.fileSize)} · type=${item.fileType}`;
     row.querySelector('button').addEventListener('click', async () => {
       try {
         await client.deleteMedia(item.mediaId);
@@ -112,7 +163,12 @@ async function connect(acceptAll) {
     setPill($('#connPill'), 'Connecting…', 'busy');
     await client.connect({ acceptAll });
     setConnected(true);
+    renderSnapshot();
     toast('Badge connected', 'ok');
+    // Best-effort media list — failures are non-fatal for push.
+    client.requestMediaList().catch((e) => {
+      log({ msg: `Media list: ${e.message}`, level: 'warn' });
+    });
   } catch (e) {
     setConnected(false);
     setPill($('#connPill'), 'Connect failed', 'err');
@@ -123,11 +179,15 @@ async function connect(acceptAll) {
 
 async function rebuildPreview() {
   const file = $('#imageInput').files?.[0];
-  if (!file) return;
+  if (!file) {
+    prepared = null;
+    updatePushChecklist();
+    return;
+  }
   try {
     prepared = await prepareFileForBadge(file, {
-      width: Number($('#dialW').value) || 320,
-      height: Number($('#dialH').value) || 384,
+      width: Number($('#dialW').value) || DEFAULT_DIAL.width,
+      height: Number($('#dialH').value) || DEFAULT_DIAL.height,
       quality: 0.5,
       round: $('#roundMask').checked,
     });
@@ -136,14 +196,22 @@ async function rebuildPreview() {
     img.hidden = false;
     $('#dialPlaceholder').hidden = true;
     $('#dial').classList.toggle('round', $('#roundMask').checked);
-    $('#imageMeta').textContent = `${file.name} → ${prepared.width}×${prepared.height} JPEG · ${formatBytes(prepared.bytes.length)}`;
+    $('#imageMeta').textContent =
+      `${file.name} → ${prepared.width}×${prepared.height} JPEG · ${formatBytes(prepared.bytes.length)}`;
+    updatePushChecklist();
   } catch (e) {
+    prepared = null;
+    updatePushChecklist();
     toast(e.message, 'err');
     log({ msg: e.message, level: 'err' });
   }
 }
 
 async function pushImage() {
+  if (!client.connected) {
+    toast('Connect a badge first', 'err');
+    return;
+  }
   if (!prepared) {
     toast('Choose an image first', 'err');
     return;
@@ -152,6 +220,8 @@ async function pushImage() {
   const wrap = $('#pushProgress');
   wrap.hidden = false;
   bar.style.width = '0%';
+  transferring = true;
+  updatePushChecklist();
   try {
     const functionType = Number($('#functionType').value) || FunctionType.BACKGROUND;
     const result = await client.transferFile(prepared.bytes, {
@@ -171,10 +241,13 @@ async function pushImage() {
       level: 'ok',
     });
     $('#mediaIdPill').textContent = `Media ID ${result.mediaId}`;
+    client.requestMediaList().catch(() => {});
   } catch (e) {
     toast(e.message, 'err');
     log({ msg: e.message, level: 'err' });
   } finally {
+    transferring = false;
+    updatePushChecklist();
     setTimeout(() => {
       wrap.hidden = true;
     }, 900);
@@ -186,7 +259,13 @@ function bind() {
   $('#btnConnectAny').addEventListener('click', () => connect(true));
   $('#btnDisconnect').addEventListener('click', () => client.disconnect());
   $('#btnRefresh').addEventListener('click', () =>
-    client.refreshDeviceInfo().catch((e) => toast(e.message, 'err')),
+    client
+      .refreshIdentity()
+      .then(() => {
+        renderSnapshot();
+        toast('Device info refreshed', 'ok');
+      })
+      .catch((e) => toast(e.message, 'err')),
   );
   $('#btnPair').addEventListener('click', () =>
     client.pair().catch((e) => toast(e.message, 'err')),
@@ -220,12 +299,27 @@ function bind() {
   client.addEventListener('connection', (e) => {
     setConnected(e.detail.connected);
     if (!e.detail.connected) {
-      renderDeviceInfo(null);
-      renderBattery(null);
+      renderSnapshot({
+        name: null,
+        model: null,
+        firmware: null,
+        hardware: null,
+        software: null,
+        manufacturer: null,
+        battery: null,
+        protocol: null,
+        freeStorage: null,
+        storageCapacity: null,
+        mediaId: null,
+      });
+      $('#mediaList').innerHTML = '<div class="empty">Connect and refresh to load media.</div>';
+      $('#mediaIdPill').textContent = 'Media ID —';
     }
   });
-  client.addEventListener('deviceinfo', (e) => renderDeviceInfo(e.detail.info));
-  client.addEventListener('battery', (e) => renderBattery(e.detail.level));
+  client.addEventListener('snapshot', (e) => renderSnapshot(e.detail.snapshot));
+  client.addEventListener('deviceinfo', () => renderSnapshot());
+  client.addEventListener('disinfo', () => renderSnapshot());
+  client.addEventListener('battery', () => renderSnapshot());
   client.addEventListener('mediaid', (e) => {
     $('#mediaIdPill').textContent = `Media ID ${e.detail.mediaId}`;
   });
@@ -257,20 +351,37 @@ async function initBuildMeta() {
   const el = $('#buildMeta');
   if (!el) return;
   try {
-    // version.json is written next to hashed assets on Pages deploy
     const res = await fetch(new URL('version.json', import.meta.url));
-    if (!res.ok) return;
+    if (!res.ok) throw new Error('no version');
     const data = await res.json();
     if (data?.version) {
-      el.textContent = `SuperBand v${data.version}${data.built_at ? ` · ${data.built_at}` : ''}`;
+      el.innerHTML = '';
+      const a = document.createElement('a');
+      a.href = REPO_URL;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.textContent = `SuperBand v${data.version}`;
+      el.appendChild(a);
+      if (data.built_at) {
+        el.appendChild(document.createTextNode(` · ${data.built_at}`));
+      }
+      return;
     }
   } catch {
-    // optional metadata
+    // fall through
   }
+  el.innerHTML = '';
+  const a = document.createElement('a');
+  a.href = REPO_URL;
+  a.target = '_blank';
+  a.rel = 'noopener noreferrer';
+  a.textContent = 'SuperBand on GitHub';
+  el.appendChild(a);
 }
 
 bind();
 initSupport();
 initBuildMeta();
 setConnected(false);
+updatePushChecklist();
 log({ msg: 'SuperBand manager ready. Connect a badge to begin.', level: 'info' });

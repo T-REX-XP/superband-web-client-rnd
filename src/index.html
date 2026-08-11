@@ -11,8 +11,33 @@
   <body>
     <div class="app">
       <header class="hero">
-        <h1>SUPERBAND</h1>
-        <p>Manage your electronic badge over Bluetooth — push faces, inspect storage, and control media.</p>
+        <div class="hero-top">
+          <h1>SUPERBAND</h1>
+          <nav class="hero-links" aria-label="Project links">
+            <a
+              href="https://github.com/T-REX-XP/superband-web-client-rnd"
+              target="_blank"
+              rel="noopener noreferrer"
+              >GitHub</a
+            >
+            <a
+              href="https://github.com/T-REX-XP/superband-web-client-rnd/blob/main/docs/README.md"
+              target="_blank"
+              rel="noopener noreferrer"
+              >Docs</a
+            >
+            <a
+              href="https://github.com/T-REX-XP/superband-web-client-rnd/issues"
+              target="_blank"
+              rel="noopener noreferrer"
+              >Issues</a
+            >
+          </nav>
+        </div>
+        <p>
+          Manage your electronic badge over Bluetooth — push faces, inspect storage, and control
+          media.
+        </p>
         <div class="hero-cta">
           <span class="status-pill" id="connPill" data-state="">Disconnected</span>
           <span class="status-pill" id="blePill">Checking Bluetooth…</span>
@@ -20,20 +45,67 @@
           <button class="ghost" id="btnConnectAny">Other device</button>
           <button class="danger" id="btnDisconnect" hidden>Disconnect</button>
         </div>
+        <div class="glance" id="deviceGlance" hidden>
+          <div class="glance-item">
+            <span class="k">Name</span><span class="v" data-glance="name">—</span>
+          </div>
+          <div class="glance-item">
+            <span class="k">Model</span><span class="v" data-glance="model">—</span>
+          </div>
+          <div class="glance-item">
+            <span class="k">Firmware</span><span class="v" data-glance="firmware">—</span>
+          </div>
+          <div class="glance-item">
+            <span class="k">Battery</span><span class="v" data-glance="battery">—</span>
+          </div>
+          <div class="glance-item">
+            <span class="k">Hardware</span><span class="v" data-glance="hardware">—</span>
+          </div>
+          <div class="glance-item">
+            <span class="k">Free</span><span class="v" data-glance="free">—</span>
+          </div>
+        </div>
       </header>
 
       <div class="grid">
         <section class="section">
           <h2>Device</h2>
-          <p class="lead">Connection status and badge details from system info.</p>
+          <p class="lead">
+            At-a-glance identity from GATT Device Information + battery; storage from Baji when the
+            badge answers.
+          </p>
           <div class="stack">
             <div class="stats" id="deviceStats">
-              <div class="stat"><span class="k">Name</span><span class="v" data-field="name">—</span></div>
-              <div class="stat"><span class="k">Firmware</span><span class="v" data-field="fw">—</span></div>
-              <div class="stat"><span class="k">Protocol</span><span class="v" data-field="proto">—</span></div>
-              <div class="stat"><span class="k">Battery</span><span class="v" data-field="battery">—</span></div>
-              <div class="stat"><span class="k">Free storage</span><span class="v" data-field="free">—</span></div>
-              <div class="stat"><span class="k">Capacity</span><span class="v" data-field="cap">—</span></div>
+              <div class="stat">
+                <span class="k">Name</span><span class="v" data-field="name">—</span>
+              </div>
+              <div class="stat">
+                <span class="k">Model</span><span class="v" data-field="model">—</span>
+              </div>
+              <div class="stat">
+                <span class="k">Firmware</span><span class="v" data-field="firmware">—</span>
+              </div>
+              <div class="stat">
+                <span class="k">Hardware</span><span class="v" data-field="hardware">—</span>
+              </div>
+              <div class="stat">
+                <span class="k">Software</span><span class="v" data-field="software">—</span>
+              </div>
+              <div class="stat">
+                <span class="k">Manufacturer</span><span class="v" data-field="manufacturer">—</span>
+              </div>
+              <div class="stat">
+                <span class="k">Battery</span><span class="v" data-field="battery">—</span>
+              </div>
+              <div class="stat">
+                <span class="k">Protocol</span><span class="v" data-field="protocol">—</span>
+              </div>
+              <div class="stat">
+                <span class="k">Free storage</span><span class="v" data-field="free">—</span>
+              </div>
+              <div class="stat">
+                <span class="k">Capacity</span><span class="v" data-field="cap">—</span>
+              </div>
             </div>
             <div class="row">
               <button data-need-conn disabled id="btnRefresh">Refresh info</button>
@@ -44,8 +116,16 @@
 
         <section class="section">
           <h2>Push image</h2>
-          <p class="lead">Crop to dial size (default 320×384), encode JPEG, upload via Baji transfer.</p>
+          <p class="lead">
+            Crop to dial size (default 360×360), encode JPEG, upload via Baji transfer. Needs a
+            connected badge and a prepared image — Baji device-info is optional.
+          </p>
           <div class="stack">
+            <ul class="checklist" id="pushChecklist">
+              <li data-check="conn">Connected</li>
+              <li data-check="image">Image ready</li>
+              <li data-check="idle">Transfer idle</li>
+            </ul>
             <div class="dial-stage">
               <div class="dial round" id="dial">
                 <div class="placeholder" id="dialPlaceholder">Choose an image<br />to preview</div>
@@ -60,11 +140,11 @@
             <div class="row">
               <label class="field">
                 Width
-                <input id="dialW" type="number" value="320" min="16" max="1024" />
+                <input id="dialW" type="number" value="360" min="16" max="1024" />
               </label>
               <label class="field">
                 Height
-                <input id="dialH" type="number" value="384" min="16" max="1024" />
+                <input id="dialH" type="number" value="360" min="16" max="1024" />
               </label>
               <label class="field">
                 Role
@@ -75,8 +155,12 @@
                 </select>
               </label>
             </div>
-            <label class="check"><input type="checkbox" id="roundMask" checked /> Round screen mask</label>
-            <label class="check"><input type="checkbox" id="allocMedia" checked /> Allocate media ID</label>
+            <label class="check"
+              ><input type="checkbox" id="roundMask" checked /> Round screen mask</label
+            >
+            <label class="check"
+              ><input type="checkbox" id="allocMedia" checked /> Allocate media ID</label
+            >
             <p class="lead" id="imageMeta">No image selected.</p>
             <div class="progress" id="pushProgress" hidden><i id="pushBar"></i></div>
           </div>
@@ -108,6 +192,23 @@
 
       <footer class="site-footer">
         <span id="buildMeta">SuperBand</span>
+        <span class="footer-links">
+          <a
+            href="https://github.com/T-REX-XP/superband-web-client-rnd"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Repository</a
+          >
+          ·
+          <a
+            href="https://github.com/T-REX-XP/superband-web-client-rnd/blob/main/docs/BLE_PROTOCOL.md"
+            target="_blank"
+            rel="noopener noreferrer"
+            >Protocol</a
+          >
+          ·
+          <a href="debug-console/" rel="noopener">Debug console</a>
+        </span>
         <span class="hint">Web Bluetooth needs Chromium + HTTPS (GitHub Pages qualifies).</span>
       </footer>
     </div>
