@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SuperBand</title>
+    <link rel="stylesheet" href="css/app.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="hero">
+        <h1>SUPERBAND</h1>
+        <p>Manage your electronic badge over Bluetooth — push faces, inspect storage, and control media.</p>
+        <div class="hero-cta">
+          <span class="status-pill" id="connPill" data-state="">Disconnected</span>
+          <span class="status-pill" id="blePill">Checking Bluetooth…</span>
+          <button class="primary" id="btnConnect">Connect badge</button>
+          <button class="ghost" id="btnConnectAny">Other device</button>
+          <button class="danger" id="btnDisconnect" hidden>Disconnect</button>
+        </div>
+      </header>
+
+      <div class="grid">
+        <section class="section">
+          <h2>Device</h2>
+          <p class="lead">Connection status and badge details from system info.</p>
+          <div class="stack">
+            <div class="stats" id="deviceStats">
+              <div class="stat"><span class="k">Name</span><span class="v" data-field="name">—</span></div>
+              <div class="stat"><span class="k">Firmware</span><span class="v" data-field="fw">—</span></div>
+              <div class="stat"><span class="k">Protocol</span><span class="v" data-field="proto">—</span></div>
+              <div class="stat"><span class="k">Battery</span><span class="v" data-field="battery">—</span></div>
+              <div class="stat"><span class="k">Free storage</span><span class="v" data-field="free">—</span></div>
+              <div class="stat"><span class="k">Capacity</span><span class="v" data-field="cap">—</span></div>
+            </div>
+            <div class="row">
+              <button data-need-conn disabled id="btnRefresh">Refresh info</button>
+              <button data-need-conn disabled id="btnPair">Re-pair</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <h2>Push image</h2>
+          <p class="lead">Crop to dial size (default 320×384), encode JPEG, upload via Baji transfer.</p>
+          <div class="stack">
+            <div class="dial-stage">
+              <div class="dial" id="dial">
+                <div class="placeholder" id="dialPlaceholder">Choose an image<br />to preview</div>
+                <img id="dialPreview" alt="" hidden />
+              </div>
+              <div class="row">
+                <input class="file-input" id="imageInput" type="file" accept="image/*" />
+                <button type="button" id="btnPickImage">Choose image</button>
+                <button class="primary" data-need-conn disabled id="btnPush">Push to badge</button>
+              </div>
+            </div>
+            <div class="row">
+              <label class="field">
+                Width
+                <input id="dialW" type="number" value="320" min="16" max="1024" />
+              </label>
+              <label class="field">
+                Height
+                <input id="dialH" type="number" value="384" min="16" max="1024" />
+              </label>
+              <label class="field">
+                Role
+                <select id="functionType">
+                  <option value="1" selected>Background</option>
+                  <option value="4">Preview</option>
+                  <option value="2">Sticker</option>
+                </select>
+              </label>
+            </div>
+            <label class="check"><input type="checkbox" id="roundMask" /> Round screen mask</label>
+            <label class="check"><input type="checkbox" id="allocMedia" checked /> Allocate media ID</label>
+            <p class="lead" id="imageMeta">No image selected.</p>
+            <div class="progress" id="pushProgress" hidden><i id="pushBar"></i></div>
+          </div>
+        </section>
+
+        <section class="section" style="grid-column: 1 / -1">
+          <h2>Media library</h2>
+          <p class="lead">List and delete media IDs stored on the badge.</p>
+          <div class="stack">
+            <div class="row">
+              <button data-need-conn disabled id="btnMediaList">Refresh list</button>
+              <button data-need-conn disabled id="btnAllocId">Allocate ID</button>
+              <span class="status-pill" id="mediaIdPill">Media ID —</span>
+            </div>
+            <div class="media-list" id="mediaList">
+              <div class="empty">Connect and refresh to load media.</div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <section class="section log-panel">
+        <div class="log-head">
+          <h2>Activity</h2>
+          <button class="ghost" id="btnClearLog">Clear</button>
+        </div>
+        <div id="activityLog"></div>
+      </section>
+    </div>
+
+    <div class="toast" id="toast" hidden></div>
+    <script type="module" src="js/app.js"></script>
+  </body>
+</html>

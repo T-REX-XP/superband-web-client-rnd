@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SuperBand BLE Console</title>
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="brand">
+        <h1>SUPERBAND</h1>
+        <p>
+          Electronic badge BLE console — Baji protocol over Web Bluetooth.
+          Reverse-engineered from SuperBand 2.1.25.
+        </p>
+      </header>
+
+      <div class="toolbar">
+        <span class="pill" id="bleSupport">Checking Web Bluetooth…</span>
+        <span class="pill" id="connStatus">Disconnected</span>
+        <button class="primary" id="btnConnect">Connect badge</button>
+        <button class="ghost" id="btnConnectAny">Connect any device</button>
+        <button class="danger" id="btnDisconnect" hidden>Disconnect</button>
+      </div>
+
+      <div class="layout">
+        <section class="panel-shell">
+          <div class="tabs">
+            <button class="tab active" data-panel="panel-control">Control</button>
+            <button class="tab" data-panel="panel-transfer">Transfer</button>
+            <button class="tab" data-panel="panel-raw">Raw</button>
+            <button class="tab" data-panel="panel-docs">Protocol</button>
+          </div>
+
+          <div class="panel active" id="panel-control">
+            <div class="stack">
+              <p class="hint">
+                Filter prefers UART service <span class="mono">7E400001…</span>, manufacturer
+                <span class="mono">0xAA01</span>, or names matching <span class="mono">_Vn_BadgeOK</span>.
+              </p>
+              <div class="field-row">
+                <button data-requires-conn disabled id="btnPair">Send pair frame</button>
+                <button data-requires-conn disabled id="btnDeviceInfo">Request device info</button>
+                <button data-requires-conn disabled id="btnMediaId">Allocate media ID</button>
+                <button data-requires-conn disabled id="btnMediaList">Media list</button>
+                <button data-requires-conn disabled id="btnStatus">Transfer status</button>
+              </div>
+              <div>
+                <strong>Media ID:</strong>
+                <span class="mono" id="mediaIdValue">—</span>
+              </div>
+              <div class="field-row">
+                <label class="field">
+                  Delete media ID
+                  <input id="deleteMediaId" type="number" min="0" placeholder="mediaId" />
+                </label>
+                <button data-requires-conn disabled id="btnDeleteMedia">Delete</button>
+              </div>
+              <div id="deviceInfo">
+                <p class="hint">Device info appears here after connect / request.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel" id="panel-transfer">
+            <div class="stack">
+              <p class="hint">
+                Pushes a file with TRANSFER_START → FILE_DATA (200 B chunks) → TRANSFER_COMPLETE + CRC32 → verify.
+              </p>
+              <label class="field">
+                File
+                <input id="fileInput" type="file" accept="image/*,video/*,.gif,.bin,.jpg,.jpeg,.png" />
+              </label>
+              <div class="field-row">
+                <label class="field">
+                  File type
+                  <select id="fileType">
+                    <option value="1" selected>IMAGE (1)</option>
+                    <option value="2">VIDEO (2)</option>
+                    <option value="3">ANIMATION (3)</option>
+                  </select>
+                </label>
+                <label class="field">
+                  Function
+                  <select id="functionType">
+                    <option value="1" selected>BACKGROUND (1)</option>
+                    <option value="2">STICKER (2)</option>
+                    <option value="3">FONT (3)</option>
+                    <option value="4">PREVIEW (4)</option>
+                  </select>
+                </label>
+              </div>
+              <label class="check">
+                <input type="checkbox" id="allocMedia" checked />
+                Allocate media ID before transfer
+              </label>
+              <div class="field-row">
+                <button class="primary" data-requires-conn disabled id="btnPushFile">Push file</button>
+                <button data-requires-conn disabled id="btnStopTransfer">Stop</button>
+              </div>
+              <div class="progress" id="transferProgress" hidden>
+                <span id="transferBar"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel" id="panel-raw">
+            <div class="stack">
+              <label class="field">
+                Raw hex write
+                <textarea id="hexInput" placeholder="cd 00 06 12 01 0a 00 01 02"></textarea>
+              </label>
+              <button data-requires-conn disabled id="btnSendHex">Send hex</button>
+              <div class="field-row">
+                <label class="field">
+                  Module
+                  <select id="cmdModule">
+                    <option value="1">1 FILE_TRANSFER</option>
+                    <option value="2">2 MEDIA</option>
+                    <option value="3" selected>3 SYSTEM</option>
+                  </select>
+                </label>
+                <label class="field">
+                  Command
+                  <input id="cmdId" type="number" min="0" max="255" value="0" />
+                </label>
+              </div>
+              <label class="field">
+                Payload hex (optional)
+                <input id="cmdPayload" type="text" placeholder="" />
+              </label>
+              <button data-requires-conn disabled id="btnSendCmd">Build &amp; send Baji packet</button>
+            </div>
+          </div>
+
+          <div class="panel" id="panel-docs">
+            <div class="docs">
+              <section>
+                <h3>Documentation</h3>
+                <p class="hint">
+                  Full docs live in the repo <span class="mono">docs/</span> folder.
+                  Open them in the editor or browse the markdown tree.
+                </p>
+                <table>
+                  <tr><th>Doc</th><th>Path</th></tr>
+                  <tr><td>Docs home</td><td class="mono">docs/README.md</td></tr>
+                  <tr><td>Getting started</td><td class="mono">docs/getting-started.md</td></tr>
+                  <tr><td>Protocol overview</td><td class="mono">docs/protocol/overview.md</td></tr>
+                  <tr><td>GATT</td><td class="mono">docs/protocol/gatt.md</td></tr>
+                  <tr><td>Framing</td><td class="mono">docs/protocol/framing.md</td></tr>
+                  <tr><td>File transfer</td><td class="mono">docs/protocol/file-transfer.md</td></tr>
+                  <tr><td>Media</td><td class="mono">docs/protocol/media.md</td></tr>
+                  <tr><td>Commands</td><td class="mono">docs/protocol/commands.md</td></tr>
+                  <tr><td>Examples</td><td class="mono">docs/protocol/examples.md</td></tr>
+                  <tr><td>Web console</td><td class="mono">docs/web-console.md</td></tr>
+                  <tr><td>Reverse engineering</td><td class="mono">docs/reverse-engineering.md</td></tr>
+                  <tr><td>Cheat sheet</td><td class="mono">docs/BLE_PROTOCOL.md</td></tr>
+                </table>
+              </section>
+
+              <section>
+                <h3>GATT (summary)</h3>
+                <table>
+                  <tr><th>Role</th><th>UUID</th></tr>
+                  <tr><td>Service</td><td>7E400001-B5A3-F393-E0A9-E50E24DCCA9D</td></tr>
+                  <tr><td>Write TX</td><td>7E400002-B5A3-F393-E0A9-E50E24DCCA9D</td></tr>
+                  <tr><td>Notify RX</td><td>7E400003-B5A3-F393-E0A9-E50E24DCCA9D</td></tr>
+                </table>
+              </section>
+
+              <section>
+                <h3>Frame (summary)</h3>
+                <div class="frame-diagram">CD | lenBE(payload+6) | 25 | 01 | module | bodyLenBE(payload+1) | cmd | payload…</div>
+                <p class="hint">See <span class="mono">docs/protocol/framing.md</span> and <span class="mono">docs/protocol/commands.md</span>.</p>
+              </section>
+            </div>
+          </div>
+        </section>
+
+        <aside class="docs-shell console-wrap">
+          <div class="console-head">
+            <h2>Wire log</h2>
+            <button class="ghost" id="btnClearLog">Clear</button>
+          </div>
+          <div id="console" aria-live="polite"></div>
+        </aside>
+      </div>
+    </div>
+    <script type="module" src="js/app.js"></script>
+  </body>
+</html>
