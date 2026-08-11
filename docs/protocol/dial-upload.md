@@ -44,12 +44,19 @@ Response payload (parsed like SDK `bluetooth/c.java` `C()`): screen type, grade,
 
 Request polls; response payload is **u32BE status**:
 
-| Code | Meaning |
+| Code | Meaning (Android `WatchThemeTransferManager`) |
 |------|---------|
 | `1000` | Start accepted — send chunk seq 1 |
 | `1000 + n` | Chunk `n` accepted — send next (or finish) |
 | `2` | Upgrade success |
-| `1`, `3`…`9` | Failure classes (storage / check / busy / …) |
+| `1` | Verification failed |
+| `3` | Battery too low |
+| `4` | **Charging** — firmware rejects dial upgrade while powered |
+| `5` | Insufficient storage |
+| `6` | Theme count limit exceeded |
+| `7` | Duplicate upgrade |
+| `8` | Theme id not found |
+| `9` | Upgrade too frequent |
 
 ## Upload sequence (custom background JPEG)
 

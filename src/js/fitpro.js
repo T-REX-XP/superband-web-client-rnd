@@ -247,6 +247,26 @@ export function parseDialStatusCode(payload) {
   return getU32BE(payload, 0);
 }
 
+/** Maps device dial-status codes to Android WatchThemeTransferManager meanings. */
+export function dialUpgradeStatusMessage(code) {
+  const messages = {
+    1: 'verification failed',
+    2: 'upgrade success',
+    3: 'battery too low',
+    4: 'device is charging — unplug power and retry',
+    5: 'insufficient storage space',
+    6: 'theme count limit exceeded',
+    7: 'duplicate upgrade',
+    8: 'theme id not found',
+    9: 'upgrade too frequent — wait and retry',
+  };
+  return messages[code] || `unknown status ${code}`;
+}
+
+export function formatDialUpgradeError(code) {
+  return `Dial upgrade error status=${code} (${dialUpgradeStatusMessage(code)})`;
+}
+
 export function isFitProDialInfoPacket(pkt) {
   return (
     pkt &&

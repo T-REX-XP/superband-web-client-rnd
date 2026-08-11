@@ -36,6 +36,7 @@ import {
   buildDialFileBlob,
   parseDialInfo,
   parseDialStatusCode,
+  formatDialUpgradeError,
   isFitProDialInfoPacket,
   isFitProDialStatusPacket,
   describeFitProDial,
@@ -396,7 +397,7 @@ class BadgeSession {
         const code = parseDialStatusCode(pkt.payload);
         if (code === expectedCode) return pkt;
         if (code >= 1 && code <= 9) {
-          throw new Error(`Dial upgrade error status=${code}`);
+          throw new Error(formatDialUpgradeError(code));
         }
       } catch (e) {
         if (String(e.message || '').startsWith('Dial upgrade error')) throw e;
