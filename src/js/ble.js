@@ -145,74 +145,63 @@ export class SuperBandBle {
   }
 
   /**
-   * Queue a GATT write. Large payloads are split like Android CommandPool
-   * (ATT fragments of maxWriteLength, paced).
+   * Queue a GATT write.
    * @param {Uint8Array|ArrayBuffer} data
    * @param {string} label
    * @param {{
    *   paceMs?: number,
    *   quiet?: boolean,
-   *   fragmentSize?: number,
    *   hex?: boolean,
-   * }} [opts]
+   *   atomic?: boolean,
+   * }} [opts] atomic=true: one writeValue call (required for FitPro CD frames on BJ-1)
    */
   async write(data, label = 'write', opts = {}) {
     if (!this.writeChar) throw new Error('Not connected');
     const bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
     const paceMs = opts.paceMs ?? 8;
-    const fragSize = Math.max(20, opts.fragmentSize ?? this.maxWriteLength);
     const quiet = opts.quiet ?? false;
     const showHex = opts.hex ?? !quiet;
+    const atomic = opts.atomic ?? true;
 
     this.writeQueue = this.writeQueue.then(async () => {
       const props = this.writeChar.properties;
       const withoutResponse = !!props.writeWithoutResponse;
-      const parts = [];
-      for (let o = 0; o < bytes.length; o += fragSize) {
-        parts.push(bytes.subarray(o, Math.min(o + fragSize, bytes.length)));
-      }
-      if (quiet) {
-        this.log(
-          `→ ${label} ${bytes.length}B` +
-            (parts.length > 1 ? ` (${parts.length} ATT frags @${fragSize})` : ''),
-          'tx',
-        );
-      } else if (parts.length === 1) {
-        this.log(
-          `→ ${label} ${bytes.length}B` + (showHex ? `  ${toHex(bytes)}` : ''),
-          'tx',
-        );
-      } else {
-        this.log(`→ ${label} ${bytes.length}B (${parts.length} ATT frags @${fragSize})`, 'tx');
+
+      if (!atomic && bytes.length > this.maxWriteLength) {
+        // Rare non-frame bulk path only — FitPro dial must stay atomic.
+        const fragSize = this.maxWriteLength;
+        const parts = [];
+        for (let o = 0; o < bytes.length; o += fragSize) {
+          parts.push(bytes.subarray(o, Math.min(o + fragSize, bytes.length)));
+        }
+        this.log(`→ ${label} ${bytes.length}B (${parts.length} ATT frags)`, 'tx');
+        for (let i = 0; i < parts.length; i++) {
+          if (withoutResponse) await this.writeChar.writeValueWithoutResponse(parts[i]);
+          else await this.writeChar.writeValueWithResponse(parts[i]);
+          if (paceMs > 0) await new Promise((r) => setTimeout(r, paceMs));
+        }
+        return;
       }
 
-      for (let i = 0; i < parts.length; i++) {
-        const part = parts[i];
-        try {
-          if (withoutResponse) {
-            await this.writeChar.writeValueWithoutResponse(part);
-          } else {
-            await this.writeChar.writeValueWithResponse(part);
-          }
-        } catch (e) {
-          // If a full-size write fails, shrink and retry once (MTU smaller than assumed).
-          if (part.length > 20 && /Invalid.*length|too long|GATT/i.test(String(e.message || e))) {
-            const smaller = Math.max(20, Math.floor(part.length / 2));
-            this.maxWriteLength = Math.min(this.maxWriteLength, smaller);
-            this.log(`ATT write too long — retry fragSize=${smaller}`, 'warn');
-            for (let o = 0; o < part.length; o += smaller) {
-              const sub = part.subarray(o, Math.min(o + smaller, part.length));
-              if (withoutResponse) await this.writeChar.writeValueWithoutResponse(sub);
-              else await this.writeChar.writeValueWithResponse(sub);
-              if (paceMs > 0) await new Promise((r) => setTimeout(r, paceMs));
-            }
-            continue;
-          }
-          throw e;
+      if (bytes.length > this.maxWriteLength) {
+        throw new Error(
+          `GATT write ${bytes.length}B exceeds maxWriteLength ${this.maxWriteLength} (atomic FitPro frame)`,
+        );
+      }
+
+      if (quiet) this.log(`→ ${label} ${bytes.length}B`, 'tx');
+      else this.log(`→ ${label} ${bytes.length}B` + (showHex ? `  ${toHex(bytes)}` : ''), 'tx');
+
+      try {
+        if (withoutResponse) await this.writeChar.writeValueWithoutResponse(bytes);
+        else await this.writeChar.writeValueWithResponse(bytes);
+      } catch (e) {
+        if (bytes.length > 20 && /Invalid.*length|too long|GATT/i.test(String(e.message || e))) {
+          const smaller = Math.max(20, Math.floor(bytes.length / 2));
+          this.maxWriteLength = Math.min(this.maxWriteLength, smaller);
+          this.log(`ATT write too long (${bytes.length}) — maxWriteLength now ${smaller}`, 'warn');
         }
-        if (paceMs > 0 && i < parts.length - 1) {
-          await new Promise((r) => setTimeout(r, paceMs));
-        }
+        throw e;
       }
       if (paceMs > 0) await new Promise((r) => setTimeout(r, paceMs));
     });

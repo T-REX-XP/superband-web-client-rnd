@@ -99,12 +99,12 @@ Matches SuperBand `PicturePush` → `WatchThemeTransferManager` → `gh3` for a 
    - style trailer `00 00 00 00` when no mix styles
 3. Wait status **`1000`** (strict — fail on 15 s timeout)
 4. **Data** `0x1F` / cmd `1`: `u16BE seq` ‖ chunk ‖ `u32BE byteSum(seq‖chunk)`  
-   Seq is **1-based**. Logical chunk size = device `watchThemeShortPkgLenght`, else **5000** (Android `gh3.t()`). Web Bluetooth ATT-fragments each FitPro frame (≤512 B writes, **6 ms** CommandPool pacing).
-5. After each logical chunk, wait status **`1000 + seq`** (strict). On slow ACK, poll `0x20`/cmd `1` like WatchTheme3Tools (not dial-info cmd `2`).
+   Seq is **1-based**. Android uses `shortPkg||5000` and may ATT-stream one large CD frame. **Web Bluetooth sends each CD frame in a single GATT write** (splitting mid-frame caused BJ-1 to ACK then show a **black** dial). Chunk = `min(shortPkg||5000, maxWrite−14)` ≈ **498 B** at MTU 512, with **6 ms** pacing.
+5. After each chunk, wait status **`1000 + seq`** (strict). On slow ACK, poll `0x20`/cmd `1` (not dial-info cmd `2`).
 6. **Finish** `0x1F` / cmd `3`: `u32BE byteSum(entire blob)`
 7. Wait status **`2`**
 
-RGB565 ~259 KB is ~52 logical chunks at 5000 B (vs ~1400×180 B in the old web path).
+RGB565 ~259 KB ≈ **520** chunks at 498 B (faster than the old 180 B path, image-correct unlike fragmented 5 KB frames).
 
 ## Web client
 

@@ -550,15 +550,15 @@ class BadgeSession {
 
   /**
    * FitPro WatchTheme3 dial31 custom-background upload.
-   * Mirrors Android `gh3` / WatchTheme3Tools (PicturePush path):
-   * logical chunks = shortPkg||5000, CommandPool 6ms ATT fragments, strict 1000+seq ACKs.
+   * Android `gh3` pacing/ACKs; chunk size capped so each CD frame is one GATT write
+   * (Web Bluetooth cannot safely stream mid-frame ATT fragments the way the Android stack does).
    */
   async transferDialFile(fileBytes, { onProgress = null } = {}) {
     if (this._transferring) throw new Error('Transfer already in progress on this badge');
     if (!this.connected) throw new Error('Not connected');
     this._transferring = true;
     this.hub._emitSessions();
-    const writeOpts = { paceMs: FitPro.COMMAND_POOL_MS, quiet: true };
+    const writeOpts = { paceMs: FitPro.COMMAND_POOL_MS, quiet: true, atomic: true };
     this.ble?.setQuiet?.(true);
 
     try {
@@ -577,14 +577,15 @@ class BadgeSession {
         );
       }
       const fileBlob = buildDialFileBlob(fileBytes);
-      const chunkSize = dialChunkSize(info);
+      const attMax = this.ble?.maxWriteLength || 512;
+      const chunkSize = dialChunkSize(info, attMax);
       const checksum = fitproByteSum(fileBlob);
       const totalChunks = Math.max(1, Math.ceil(fileBlob.length / chunkSize));
 
       this._log(
-        `Dial31 (Android-parity) size=${fileBlob.length} img=${fileBytes.length} ` +
-          `logicalChunk=${chunkSize} chunks=${totalChunks} type=${dialType} ` +
-          `${expectJpeg ? 'JPEG' : 'RGB565'} pace=${FitPro.COMMAND_POOL_MS}ms`,
+        `Dial31 size=${fileBlob.length} img=${fileBytes.length} ` +
+          `chunk=${chunkSize} (atomic GATT, attMax=${attMax}) chunks=${totalChunks} ` +
+          `type=${dialType} ${expectJpeg ? 'JPEG' : 'RGB565'} pace=${FitPro.COMMAND_POOL_MS}ms`,
         'info',
       );
       this._emit('transfer', {

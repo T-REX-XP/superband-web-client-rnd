@@ -32,12 +32,13 @@ export const FitPro = {
   STATUS_OK: 2,
   STATUS_CHECK_FAIL: 1,
   /**
-   * Logical image bytes per dial DATA frame — matches WatchTheme3Tools `gh3.t()`:
-   * device `watchThemeShortPkgLenght`, else **5000** (Android has no 180 cap).
-   * Large FitPro frames are ATT-fragmented by `SuperBandBle.write` like CommandPool.
+   * Android WatchTheme3Tools `gh3.t()` default when shortPkg unknown.
+   * On Web Bluetooth we must also fit one complete FitPro DATA frame in a single
+   * GATT write — splitting a CD frame across writes made BJ-1 ACK then show black.
    */
-  MAX_CHUNK: 5000,
-  DEFAULT_CHUNK: 5000,
+  ANDROID_DEFAULT_CHUNK: 5000,
+  /** CD(1)+len(2)+mod/cmd(3)+plen(2) + seq(2) + sum(4) */
+  DATA_FRAME_OVERHEAD: 14,
   /** Android CommandPool.n(6) during dial upgrade */
   COMMAND_POOL_MS: 6,
   /** gh3 countdown: 15s total, 5s ticks; status poll when remaining ≤ 10s */
@@ -308,11 +309,17 @@ export function describeFitProDial(info) {
     .join(' ');
 }
 
-/** Logical dial DATA payload size — Android `gh3.t()` (default 5000). */
-export function dialChunkSize(info) {
-  const fromDev = info?.shortPkgLength > 0 ? Number(info.shortPkgLength) : FitPro.DEFAULT_CHUNK;
-  if (!Number.isFinite(fromDev) || fromDev < 1) return FitPro.DEFAULT_CHUNK;
-  return Math.min(fromDev, FitPro.MAX_CHUNK);
+/**
+ * Dial DATA payload size.
+ * Prefer device shortPkg / Android 5000, but never exceed what fits in one GATT write
+ * (`maxWriteLength - DATA_FRAME_OVERHEAD`). Default maxWriteLength 512 → 498 B.
+ */
+export function dialChunkSize(info, maxWriteLength = 512) {
+  const fromDev =
+    info?.shortPkgLength > 0 ? Number(info.shortPkgLength) : FitPro.ANDROID_DEFAULT_CHUNK;
+  const attCap = Math.max(20, (Number(maxWriteLength) || 512) - FitPro.DATA_FRAME_OVERHEAD);
+  const want = Number.isFinite(fromDev) && fromDev >= 1 ? fromDev : FitPro.ANDROID_DEFAULT_CHUNK;
+  return Math.min(want, attCap);
 }
 
 /** Debug helper */

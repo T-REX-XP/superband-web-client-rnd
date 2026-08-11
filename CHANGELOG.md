@@ -32,7 +32,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Changed
 
-- Dial upload follows Android **WatchTheme3Tools (`gh3`)**: logical chunks `shortPkg||5000`, ATT fragmentation, **6 ms** pacing, strict `1000+seq` ACKs + status polls (was 180 B soft-paced)
+- Dial upload follows Android **WatchTheme3Tools (`gh3`)** ACKs/**6 ms** pacing; Web chunk = `min(shortPkg||5000, ATT−14)` as **one GATT write per CD frame** (mid-frame ATT splits caused black dial after OK status)
 - **Push to all** runs **simultaneous** uploads on every connected badge (parallel GATT streams; aggregated progress)
 - Default dial size **360×360**; round mask on by default; push checklist (connected / image / idle)
 - Badge picker filters include `BJ*`, `DG*`, `_V*`, mfg `0xAA01`
