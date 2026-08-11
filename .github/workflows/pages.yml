@@ -50,8 +50,12 @@ jobs:
         working-directory: src
         env:
           BASE_PATH: ${{ steps.base.outputs.path }}
+          BUILD_NUMBER: ${{ github.run_number }}
         run: |
           set -euo pipefail
+          # CalVer: YYYY.MM.DD.<GitHub run number>
+          export APP_VERSION="$(date -u +%Y.%m.%d).${BUILD_NUMBER}"
+          echo "Building SuperBand ${APP_VERSION}"
           bun install --frozen-lockfile
           bun run build
 
@@ -63,14 +67,12 @@ jobs:
           # Ship debug console beside the manager (static assets, no Bun build)
           mkdir -p _site/debug-console
           cp -a src/debug-console/. _site/debug-console/
-          VERSION="$(python3 -c "import json; print(json.load(open('src/package.json'))['version'])")"
-          cat > _site/version.json <<EOF
-          {"version":"${VERSION}","repository":"${{ github.repository }}","built_at":"$(date -u +%Y-%m-%dT%H:%M:%SZ)","source":"pages-workflow","base_path":"${{ steps.base.outputs.path }}"}
-          EOF
           test -f _site/index.html
           test -f _site/.nojekyll
+          test -f _site/version.json
           test -f _site/debug-console/index.html
-          head -n 12 _site/index.html
+          echo "Deploy version: $(python3 -c "import json; print(json.load(open('_site/version.json'))['version'])")"
+          head -n 16 _site/index.html
 
       - uses: actions/configure-pages@v6
         with:

@@ -256,6 +256,8 @@ async function connect(acceptAll) {
     } else if (snap.protocolMode === 'fitpro') {
       log({ msg: 'FitPro badge — media library skipped (use Push for dial31 upload)', level: 'info' });
     }
+    // Re-encode for protocol (FitPro RGB565 vs Baji/alg4 JPEG).
+    if ($('#imageInput').files?.length) await rebuildPreview();
   } catch (e) {
     syncConnectionChrome();
     renderDeviceChips();
@@ -275,19 +277,24 @@ async function rebuildPreview() {
     return;
   }
   try {
+    // BJ/DG FitPro: RGB565 dial type 0. Baji / algorithm-4 JPEG only when needed.
+    const snap = client.getSnapshot();
+    const useJpeg = snap.protocolMode === 'baji' || snap.dialAlgorithm === 4;
     prepared = await prepareFileForBadge(file, {
       width: Number($('#dialW').value) || DEFAULT_DIAL.width,
       height: Number($('#dialH').value) || DEFAULT_DIAL.height,
       quality: 0.5,
       round: $('#roundMask').checked,
+      format: useJpeg ? 'jpeg444' : 'rgb565',
     });
     const img = $('#dialPreview');
     img.src = prepared.previewUrl;
     img.hidden = false;
     $('#dialPlaceholder').hidden = true;
     $('#dial').classList.toggle('round', $('#roundMask').checked);
+    const fmtLabel = prepared.format === 'jpeg444' ? 'JPEG 4:4:4' : 'RGB565';
     $('#imageMeta').textContent =
-      `${file.name} → ${prepared.width}×${prepared.height} JPEG 4:4:4 · ${formatBytes(prepared.bytes.length)}`;
+      `${file.name} → ${prepared.width}×${prepared.height} ${fmtLabel} · ${formatBytes(prepared.bytes.length)}`;
     updatePushChecklist();
   } catch (e) {
     prepared = null;
@@ -532,36 +539,39 @@ function initSupport() {
   }
 }
 
-async function initBuildMeta() {
+const FALLBACK_VERSION = '2026.08.11.1';
+
+function applyVersionLabel(version, builtAt = null) {
+  const hero = $('#appVersion');
+  if (hero) hero.textContent = version;
+
   const el = $('#buildMeta');
   if (!el) return;
-  try {
-    const res = await fetch(new URL('version.json', import.meta.url));
-    if (!res.ok) throw new Error('no version');
-    const data = await res.json();
-    if (data?.version) {
-      el.innerHTML = '';
-      const a = document.createElement('a');
-      a.href = REPO_URL;
-      a.target = '_blank';
-      a.rel = 'noopener noreferrer';
-      a.textContent = `SuperBand v${data.version}`;
-      el.appendChild(a);
-      if (data.built_at) {
-        el.appendChild(document.createTextNode(` · ${data.built_at}`));
-      }
-      return;
-    }
-  } catch {
-    // fall through
-  }
   el.innerHTML = '';
   const a = document.createElement('a');
   a.href = REPO_URL;
   a.target = '_blank';
   a.rel = 'noopener noreferrer';
-  a.textContent = 'SuperBand on GitHub';
+  a.textContent = `SuperBand v${version}`;
   el.appendChild(a);
+  if (builtAt) {
+    el.appendChild(document.createTextNode(` · ${builtAt}`));
+  }
+}
+
+async function initBuildMeta() {
+  applyVersionLabel(FALLBACK_VERSION);
+  try {
+    // Site-root version.json (written by Pages / local build), not next to the JS chunk.
+    const res = await fetch(new URL('version.json', document.baseURI));
+    if (!res.ok) throw new Error('no version');
+    const data = await res.json();
+    if (data?.version) {
+      applyVersionLabel(String(data.version), data.built_at || null);
+    }
+  } catch {
+    // Keep FALLBACK_VERSION from HTML / package.json.
+  }
 }
 
 bind();

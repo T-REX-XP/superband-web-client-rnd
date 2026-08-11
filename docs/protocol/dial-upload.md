@@ -37,8 +37,10 @@ Response payload (parsed like SDK `bluetooth/c.java` `C()`): screen type, grade,
 
 | Algorithm | App encode | Dial type byte |
 |-----------|------------|----------------|
-| `4` | JPEG (TurboJPEG q≈50) | `2` |
-| `0` / `3` / other | JieLi `BmpConvert` (native) | `0` |
+| `4` | JPEG (TurboJPEG q≈50, **4:4:4**) | `2` |
+| `0` / `3` / other | JieLi `BmpConvert` → RGB565 (packed or raw) | `0` |
+
+BJ-1 / DG01 (AC707N) dial-info is **not** auto-probed (GATT drop). The manager therefore defaults to **RGB565 + dial type `0`**, matching the working `dg01-ble upload-dial` path and non-JPEG FitPro devices. JPEG type `2` is used only when dial-info reports algorithm `4`.
 
 ### Upgrade status (`0x20` / cmd `1`)
 
@@ -58,7 +60,18 @@ Request polls; response payload is **u32BE status**:
 | `8` | Theme id not found |
 | `9` | Upgrade too frequent |
 
-## JPEG rules (critical)
+## Payload formats
+
+### RGB565 (default for BJ-1 / DG01)
+
+1. Cover-crop to dial width×height (round mask optional).
+2. Pack pixels as **little-endian RGB565** (`R5 G6 B5`), row-major → `width × height × 2` bytes (360×360 → **259200**).
+3. File blob: `u32BE(imageLen) ‖ rgb565Bytes`.
+4. Start with **dialType `0`**.
+
+Transfer can return status `2` for a wrong encode (e.g. JPEG as type `2` on a type-`0` device) while the screen stays **black**. Prefer RGB565 unless algorithm `4` is known.
+
+### JPEG rules (algorithm `4` only)
 
 Firmware / app `JpegRulesChecker` (+ TurboJPEG `subsample=0`) require:
 
@@ -70,16 +83,16 @@ Firmware / app `JpegRulesChecker` (+ TurboJPEG `subsample=0`) require:
 | MCU | Width/height multiple of **8** (4:4:4). 360×360 fails MCU under 4:2:0 (`%16`) |
 | Extra | No ICC APP2 / restart markers preferred |
 
-Browser `canvas.toBlob('image/jpeg')` typically emits **4:2:0 + ICC**. Transfer can still return status `2`, but the dial stays **black**. The web client re-encodes with `src/js/jpeg444.js`.
+Browser `canvas.toBlob('image/jpeg')` typically emits **4:2:0 + ICC**. Use `src/js/jpeg444.js` when algorithm is `4`.
 
-## Upload sequence (custom background JPEG)
+## Upload sequence (custom background)
 
 Matches SuperBand `PicturePush` → `WatchThemeTransferManager` → `gh3` for a single custom background:
 
-1. Build file blob: `u32BE(imageLen) ‖ jpegBytes`
+1. Build file blob: `u32BE(imageLen) ‖ imageBytes` (RGB565 or JPEG)
 2. **Start** `0x1F` / cmd `2` with payload:
    - `u32BE dialId` — app uses **`5538`** for processed picture push
-   - `u8 dialType` — `2` for JPEG
+   - `u8 dialType` — `0` RGB565 / `2` JPEG
    - `u8 flags` — `0x08` = custom-background only (bit pack from SDK `ks1.a`)
    - `RGB` 3 bytes (usually `00 00 00`)
    - `u32BE fileSize` — blob length
@@ -91,7 +104,7 @@ Matches SuperBand `PicturePush` → `WatchThemeTransferManager` → `gh3` for a 
 6. **Finish** `0x1F` / cmd `3`: `u32BE byteSum(entire blob)`
 7. Wait status **`2`**
 
-Inter-chunk pacing in the app is ~6 ms; the web client writes serially with a short delay.
+Inter-chunk pacing in the app is ~6 ms; the web client writes serially with a short delay. RGB565 ~259 KB takes longer than a ~20 KB JPEG.
 
 ## Web client
 

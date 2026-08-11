@@ -14,7 +14,8 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Fixed
 
-- Dial push black screen: encode **baseline JFIF 4:4:4** JPEG (APK TurboJPEG / JpegRulesChecker); browser `toBlob` 4:2:0 failed MCU on 360×360
+- Dial push black screen on BJ-1: default **RGB565 + dial type 0** (AC707N / FitPro non-JPEG path). Prior JPEG type-2 transfers ACK’d but the panel stayed black
+- Dial JPEG path (algorithm 4): encode **baseline JFIF 4:4:4** (APK TurboJPEG / JpegRulesChecker); browser `toBlob` 4:2:0 failed MCU on 360×360
 - Dial upgrade status codes mapped to readable errors (e.g. status `4` = charging)
 
 ### Added

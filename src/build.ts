@@ -28,6 +28,26 @@ if (!result.success) {
 // Prevent Jekyll processing on GitHub Pages (harmless with Actions, still best practice).
 await Bun.write(`${outdir}/.nojekyll`, '');
 
+// CalVer build stamp: YYYY.MM.DD.<build> (override with APP_VERSION / BUILD_NUMBER).
+const pkg = await Bun.file('./package.json').json();
+const today = new Date();
+const yyyy = today.getUTCFullYear();
+const mm = String(today.getUTCMonth() + 1).padStart(2, '0');
+const dd = String(today.getUTCDate()).padStart(2, '0');
+const buildNum = process.env.BUILD_NUMBER || '1';
+const version =
+  process.env.APP_VERSION ||
+  (pkg.version?.startsWith(`${yyyy}.${mm}.${dd}.`) ? pkg.version : `${yyyy}.${mm}.${dd}.${buildNum}`);
+const versionPayload = {
+  version,
+  repository: process.env.GITHUB_REPOSITORY || 'T-REX-XP/superband-web-client-rnd',
+  built_at: new Date().toISOString(),
+  source: process.env.GITHUB_ACTIONS ? 'pages-workflow' : 'local-build',
+  base_path: publicPath,
+};
+await Bun.write(`${outdir}/version.json`, `${JSON.stringify(versionPayload, null, 2)}\n`);
+console.log(`version.json → ${version}`);
+
 // Soft-404: recover deep links / missing trailing slash navigations.
 const indexHtml = await Bun.file(`${outdir}/index.html`).text();
 const redirect = `<!DOCTYPE html>

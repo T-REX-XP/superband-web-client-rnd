@@ -555,15 +555,27 @@ class BadgeSession {
     this.hub._emitSessions();
 
     try {
-      // Do not send DIAL_INFO (0x20) — drops BJ-1. Use DIS/defaults (JPEG dial type 2).
+      // Do not send DIAL_INFO (0x20) — drops BJ-1. Default RGB565 + dialType 0
+      // (AC707N / dg01-ble). JPEG type 2 only when dial-info reported algorithm 4.
       const info = this.dialInfo;
-      const dialType = 2;
+      const dialType = info?.dialType ?? (info?.algorithm === 4 ? 2 : 0);
+      const expectJpeg = dialType === 2;
+      const looksJpeg =
+        fileBytes.length >= 3 && fileBytes[0] === 0xff && fileBytes[1] === 0xd8;
+      if (expectJpeg && !looksJpeg) {
+        throw new Error('Dial algorithm 4 expects JPEG 4:4:4 bytes; re-prepare image');
+      }
+      if (!expectJpeg && looksJpeg) {
+        throw new Error(
+          'FitPro badge expects RGB565 (dial type 0), not JPEG — re-select the image after connect',
+        );
+      }
       const fileBlob = buildDialFileBlob(fileBytes);
       const chunkSize = dialChunkSize(info);
       const checksum = fitproByteSum(fileBlob);
 
       this._log(
-        `Dial31 push size=${fileBlob.length} (img=${fileBytes.length}) chunk=${chunkSize} type=${dialType} (no dial-info probe)`,
+        `Dial31 push size=${fileBlob.length} (img=${fileBytes.length}) chunk=${chunkSize} type=${dialType} ${expectJpeg ? 'JPEG' : 'RGB565'} (no dial-info probe)`,
         'info',
       );
       this._emit('transfer', {

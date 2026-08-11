@@ -126,7 +126,8 @@ export function buildDialFileBlob(imageBytes) {
  */
 export function buildDialStartPayload({
   dialId = FitPro.PICTURE_DIAL_ID,
-  dialType = 2,
+  /** 0 = JieLi RGB/BMP path; 2 = JPEG (algorithm 4 only) */
+  dialType = 0,
   fileSize,
   flags = dialFlagsCustomBgOnly(),
 } = {}) {
@@ -235,7 +236,7 @@ export function parseDialInfo(payload) {
       themeVersion,
       shortPkgLength: shortPkg,
       dialType: algorithm === 4 ? 2 : 0,
-      jpeg: algorithm === 4 || algorithm === 0,
+      jpeg: algorithm === 4,
     };
   } catch {
     return null;

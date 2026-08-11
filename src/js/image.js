@@ -7,6 +7,28 @@ import { encodeBaselineJpeg444, describeJpeg } from './jpeg444.js';
 export const DEFAULT_DIAL = { width: 360, height: 360 };
 
 /**
+ * Pack ImageData as RGB565 pixel bytes (row-major).
+ * FitPro dial type 0 / JieLi RGB path (dg01-ble upload-dial, BmpConvert NO_PACK).
+ * @param {ImageData} imageData
+ * @param {{ littleEndian?: boolean }} [opts]
+ */
+export function encodeRgb565(imageData, { littleEndian = true } = {}) {
+  const { data, width, height } = imageData;
+  const out = new Uint8Array(width * height * 2);
+  const view = new DataView(out.buffer);
+  let o = 0;
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+    const rgb565 = ((r & 0xf8) << 8) | ((g & 0xfc) << 3) | (b >> 3);
+    view.setUint16(o, rgb565, littleEndian);
+    o += 2;
+  }
+  return out;
+}
+
+/**
  * Load a File/Blob into an HTMLImageElement.
  * @param {Blob} blob
  */
@@ -27,16 +49,18 @@ export function loadImage(blob) {
 }
 
 /**
- * Cover-crop into dial size and export JPEG.
+ * Cover-crop into dial size and export bytes for badge push.
  * @param {CanvasImageSource} source
- * @param {{width?:number,height?:number,quality?:number,round?:boolean}} opts
- * @returns {Promise<{blob: Blob, bytes: Uint8Array, width: number, height: number, previewUrl: string}>}
+ * @param {{width?:number,height?:number,quality?:number,round?:boolean,format?:'rgb565'|'jpeg444'}} opts
+ * @returns {Promise<{blob: Blob, bytes: Uint8Array, width: number, height: number, previewUrl: string, format: string}>}
  */
 export async function prepareDialImage(source, {
   width = DEFAULT_DIAL.width,
   height = DEFAULT_DIAL.height,
   quality = 0.5,
   round = false,
+  /** FitPro BJ/DG default: RGB565 type 0. JPEG only when dial algorithm === 4. */
+  format = 'rgb565',
 } = {}) {
   const canvas = document.createElement('canvas');
   canvas.width = width;
@@ -69,21 +93,27 @@ export async function prepareDialImage(source, {
   ctx.drawImage(source, dx, dy, dw, dh);
   if (round) ctx.restore();
 
-  // FitPro JpegRulesChecker / TurboJPEG path requires baseline JFIF 4:4:4.
-  // canvas.toBlob() emits 4:2:0 (+ often ICC) → MCU fail on 360×360 → black dial.
-  const q = Math.round(Math.max(1, Math.min(100, (quality <= 1 ? quality * 100 : quality))));
   const imageData = ctx.getImageData(0, 0, width, height);
-  const bytes = encodeBaselineJpeg444(imageData, { quality: q || 50 });
-  const meta = describeJpeg(bytes);
-  if (!meta.ok) {
-    throw new Error(
-      `Dial JPEG failed device rules (jfif=${meta.jfif} 444=${meta.is444} mcu=${meta.mcuOk})`,
-    );
+  // Preview always from canvas PNG (accurate colors; JPEG/RGB565 may differ slightly).
+  const previewUrl = canvas.toDataURL('image/png');
+
+  if (format === 'jpeg444') {
+    // FitPro JpegRulesChecker / TurboJPEG path (algorithm 4 only).
+    const q = Math.round(Math.max(1, Math.min(100, (quality <= 1 ? quality * 100 : quality))));
+    const bytes = encodeBaselineJpeg444(imageData, { quality: q || 50 });
+    const meta = describeJpeg(bytes);
+    if (!meta.ok) {
+      throw new Error(
+        `Dial JPEG failed device rules (jfif=${meta.jfif} 444=${meta.is444} mcu=${meta.mcuOk})`,
+      );
+    }
+    const blob = new Blob([bytes], { type: 'image/jpeg' });
+    return { blob, bytes, width, height, previewUrl, format: 'jpeg444', jpeg: meta };
   }
 
-  const blob = new Blob([bytes], { type: 'image/jpeg' });
-  const previewUrl = URL.createObjectURL(blob);
-  return { blob, bytes, width, height, previewUrl, jpeg: meta };
+  const bytes = encodeRgb565(imageData, { littleEndian: true });
+  const blob = new Blob([bytes], { type: 'application/octet-stream' });
+  return { blob, bytes, width, height, previewUrl, format: 'rgb565' };
 }
 
 /**

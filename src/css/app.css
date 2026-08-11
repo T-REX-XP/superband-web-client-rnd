@@ -66,6 +66,12 @@ body::before {
   animation: rise 0.75s ease both;
 }
 
+.brand-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
 .hero h1 {
   margin: 0;
   font-family: var(--font-brand);
@@ -76,6 +82,14 @@ body::before {
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+}
+
+.app-version {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  color: var(--muted);
 }
 
 .hero-top {

@@ -66,7 +66,7 @@ If only a legacy `0xDC` pair ack arrives (e.g. **BJ-1**), the UI still shows DIS
 | `js/advanced.js` | Advanced tab bindings |
 | `js/ble.js` | Web Bluetooth UART + DIS + battery (+ optional AE00) |
 | `js/client.js` | `SuperBandClient` multi-session hub + per-badge `BadgeSession` |
-| `js/image.js` | Cover-crop + JPEG encode for dial size |
+| `js/image.js` | Cover-crop + RGB565 (FitPro) / JPEG 4:4:4 (alg 4 / Baji) |
 | `js/app.js` | UI bindings |
 
 ### Multi-device notes
@@ -77,7 +77,7 @@ Web Bluetooth can keep **several GATT connections** at once. Each **Add badge** 
 
 1. User picks image  
 2. Cover-crop to dial width×height (round mask default on; dims may follow dial-info)  
-3. JPEG quality ~0.5 (matches app TurboJPEG ~50)  
+3. FitPro: RGB565 LE; algorithm-4 JPEG quality ~0.5 (TurboJPEG ~50)  
 4. **Baji path:** optional `allocateMediaId` → file-transfer chunks (~200 B)  
 5. **FitPro path (BJ-1):** dial31 start → data (seq + byte-sum) → finish; status `1000+n` / `2`  
 
