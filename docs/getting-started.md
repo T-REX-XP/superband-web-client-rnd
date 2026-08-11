@@ -7,10 +7,11 @@
 ├── .github/workflows/   # Pages deploy + validate (Bun)
 ├── artifacts/           # Local APKs (gitignored)
 ├── docs/                # This documentation
+├── tools/               # Firmware download + APK unpack scripts
 ├── src/                 # All application sources
 │   ├── …                # Primary Web Bluetooth manager (Bun)
 │   └── debug-console/   # Low-level protocol debug console
-└── research/unpacked/   # Extracted APK + jadx sources (gitignored)
+└── research/            # unpacked/ + firmware/ (gitignored)
 ```
 
 ## Prerequisites
@@ -48,12 +49,14 @@ cd src/debug-console && python3 -m http.server 8765
 
 ## Unpack the APK (optional)
 
-Already done under `research/unpacked/` when this project was set up. To redo:
+Place the SuperBand `.apks` under `artifacts/`, then:
 
 ```bash
-unzip artifacts/SuperBand_2.1.25_apkcube.apks -d research/unpacked/apks
-jadx -d research/unpacked/jadx --show-bad-code --no-res research/unpacked/apks/base.apk
+./tools/unpack-apk.sh
+# or: ./tools/unpack-apk.sh --apks artifacts/SuperBand_2.1.25_apkcube.apks --no-jadx
 ```
+
+This writes `research/unpacked/apks/` and (if `jadx` is on `PATH`) `research/unpacked/jadx/`.
 
 Key packages from the reference client:
 
@@ -61,7 +64,19 @@ Key packages from the reference client:
 - `com.legend.mywatch.sdk…bluetooth` — GATT UART
 - `xfkj.fitpro.ui.viewmodels.bluetooth` — scan filters
 
-See [RnD investigation](rnd-investigation.md).
+See [RnD investigation](rnd-investigation.md) · [tools/README.md](../tools/README.md).
+
+## Download firmware (optional)
+
+```bash
+./tools/download-firmware.sh --preset bj1    # GAP name "BJ-1"
+./tools/download-firmware.sh --preset dg01   # DG01 SuperBand
+./tools/download-firmware.sh --preset all
+# Or probe by DIS soft-version catalog key:
+./tools/download-firmware.sh --version V32172 --name BJ-1
+```
+
+Zips land in `research/firmware/` (gitignored). See [Firmware OTA](protocol/ota-firmware.md).
 
 ## Browser notes
 

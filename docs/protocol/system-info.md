@@ -37,7 +37,7 @@ u32 featuresLen      | features UTF-8
 
 ## Web console
 
-**Control → Request device info** sends the request and renders the parsed response in the device info panel. The console also auto-requests info after a successful connect.
+The manager auto-requests device info after connect. Some badges (e.g. GAP name **`BJ-1`**) only return a legacy `0xDC` ack to the pair frame and never emit `DEVICE_INFO_RESPONSE`; the client logs a timeout and stays usable for media/file commands. Read firmware revision from DIS `0x2A26` when Baji info is missing.
 
 ## Related
 

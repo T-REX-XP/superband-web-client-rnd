@@ -14,11 +14,13 @@ How the protocol docs were derived during RnD investigation of **SuperBand 2.1.2
 ## Unpack
 
 ```bash
-unzip artifacts/SuperBand_2.1.25_apkcube.apks -d research/unpacked/apks
-jadx -d research/unpacked/jadx --show-bad-code --no-res research/unpacked/apks/base.apk
+./tools/unpack-apk.sh
+# equivalent:
+# unzip artifacts/SuperBand_2.1.25_apkcube.apks -d research/unpacked/apks
+# jadx -d research/unpacked/jadx --show-bad-code --no-res research/unpacked/apks/base.apk
 ```
 
-`research/unpacked/` is gitignored (large).
+`research/unpacked/` is gitignored (large). Scripts: [tools/README.md](../tools/README.md).
 
 ## Key source locations
 
@@ -55,6 +57,33 @@ jadx -d research/unpacked/jadx --show-bad-code --no-res research/unpacked/apks/b
 - **parsePacket** payload slice includes `commandId`; handlers should prefer `CommandHeader` + payload from offset 9.
 - Opcode enums sometimes reference `AttrAndFunCode.SYS_INFO_ATTR_*` whose values are plain integers `11`–`18` — not JieLi RCSP semantics in this context.
 - OTA stacks (JieLi `AE00`, Nordic DFU `FED*`, Telink) are separate from Baji media transfer.
+
+## Firmware OTA investigation
+
+No badge firmware is bundled in the APK. The app queries:
+
+`GET https://tomato.gulaike.com/api/v1/config/app?name={btName}&type=1&version={DIS 2A26}`
+
+with a fixed Bearer token from `HttpHelper`. Catalog hits are keyed by the **exact** `version` string (bluetooth `name` is weak/ignored in probes).
+
+**DG01 SuperBand package** (filename match):
+
+`https://cdn.jusonsmart.com/0ta/LJ733/V32399_A12172156_LJ733_V1.2_YJ435_DG01_SUPERBAND.zip`
+
+offered when soft version is **`V32294`** (not `V32399` — that is the target build / UI string). Zip → `app.ufw` → JieLi `AE00` flash (`plarmType == 7`).
+
+**BJ-1 SuperBand package** (GAP name `BJ-1`):
+
+`https://cdn.jusonsmart.com/0ta/LJ733/V32286_A12091701_LJ733_V1.2_ZX400_BJ-1_SUPERBAND.zip`
+
+(catalog key **`V32172`**).
+
+```bash
+./tools/download-firmware.sh --preset bj1
+./tools/download-firmware.sh --preset dg01
+```
+
+Details: [Firmware OTA](protocol/ota-firmware.md) · [tools/README.md](../tools/README.md).
 
 ## Related documentation
 

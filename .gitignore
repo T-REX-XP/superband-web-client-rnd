@@ -2,6 +2,7 @@
 artifacts/*.apks
 artifacts/*.apk
 research/unpacked/
+research/firmware/
 
 # Dependencies & build output
 node_modules/

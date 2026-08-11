@@ -28,7 +28,7 @@ Notes:
 | Device information | `0000180A-…` | DIS |
 | Firmware revision | `00002A26-…` | Read |
 | Software revision | `00002A28-…` | Read |
-| JieLi OTA service | `0000AE00-…` | OTA path |
+| JieLi OTA service | `0000AE00-…` | OTA path (see [Firmware OTA](ota-firmware.md)) |
 | JieLi chars | `AE01`, `AE02` | OTA write/notify |
 | Alternate UART | `0000FFFF` + `FF11` / `FF22` | Platform type alternate |
 | Telink-style | `00010203-0405-0607-0809-0a0b0c0d1912` | OTA-related |

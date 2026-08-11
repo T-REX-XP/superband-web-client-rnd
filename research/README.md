@@ -1,9 +1,17 @@
 # Research workspace
 
-Local-only material from RnD investigation of the reference Android client.
+Local-only material from RnD investigation of the reference Android client and OTA firmware.
 
 | Path | Purpose |
 |------|---------|
 | `unpacked/` | Extracted `.apks` + jadx sources (gitignored, large) |
+| `firmware/` | Downloaded OTA zips / `app.ufw` (gitignored) |
 
-See [docs/rnd-investigation.md](../docs/rnd-investigation.md) for how this tree is produced and which packages matter.
+Populate with:
+
+```bash
+./tools/unpack-apk.sh
+./tools/download-firmware.sh --preset all
+```
+
+See [tools/README.md](../tools/README.md) and [docs/rnd-investigation.md](../docs/rnd-investigation.md).

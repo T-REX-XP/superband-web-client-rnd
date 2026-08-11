@@ -47,7 +47,7 @@
           <p class="lead">Crop to dial size (default 320×384), encode JPEG, upload via Baji transfer.</p>
           <div class="stack">
             <div class="dial-stage">
-              <div class="dial" id="dial">
+              <div class="dial round" id="dial">
                 <div class="placeholder" id="dialPlaceholder">Choose an image<br />to preview</div>
                 <img id="dialPreview" alt="" hidden />
               </div>
@@ -75,7 +75,7 @@
                 </select>
               </label>
             </div>
-            <label class="check"><input type="checkbox" id="roundMask" /> Round screen mask</label>
+            <label class="check"><input type="checkbox" id="roundMask" checked /> Round screen mask</label>
             <label class="check"><input type="checkbox" id="allocMedia" checked /> Allocate media ID</label>
             <p class="lead" id="imageMeta">No image selected.</p>
             <div class="progress" id="pushProgress" hidden><i id="pushBar"></i></div>

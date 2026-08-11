@@ -8,9 +8,10 @@ Unofficial RnD investigation of the **SuperBand / electronic badge** Bluetooth L
 | Piece | Path | Purpose |
 |-------|------|---------|
 | Application sources | [`src/`](src/) | Bun Web Bluetooth manager + debug console |
-| Protocol docs | [`docs/`](docs/) | GATT, framing, media, file transfer |
+| Protocol docs | [`docs/`](docs/) | GATT, framing, media, file transfer, OTA |
+| Tools | [`tools/`](tools/) | Download firmware, unpack APK, probe OTA catalog |
 | Artifacts | [`artifacts/`](artifacts/) | Local APKs (gitignored) |
-| Research | [`research/`](research/) | Unpacked reference client (gitignored) |
+| Research | [`research/`](research/) | Unpacked client + firmware zips (gitignored) |
 
 Derived from SuperBand app `com.legend.smartwatch.electronicbadge.android` **2.1.25**. Not affiliated with the device vendor or app publisher.
 
@@ -23,9 +24,10 @@ Changelog: [CHANGELOG.md](CHANGELOG.md)
 ├── src/                   # All application sources
 │   ├── js/ css/ …         # Primary Web Bluetooth manager (Bun)
 │   └── debug-console/     # Low-level protocol console
+├── tools/                 # Firmware download + APK unpack helpers
 ├── docs/                  # Protocol + usage documentation
 ├── artifacts/             # Local APK bundles (not committed)
-├── research/              # Local unpacked/jadx tree (not committed)
+├── research/              # Unpacked/jadx + firmware (not committed)
 └── .github/workflows/     # Validate + GitHub Pages
 ```
 
@@ -105,16 +107,29 @@ python3 -m http.server 8765
 
 ---
 
+## Tools (firmware / APK)
+
+```bash
+./tools/download-firmware.sh --preset all          # DG01 + BJ-1 SuperBand zips
+./tools/download-firmware.sh --preset bj1          # BJ-1 package
+./tools/unpack-apk.sh                              # artifacts/*.apks → research/unpacked/
+bun tools/probe-ota.mjs --name BJ-1 --version V32172
+```
+
+Details: [tools/README.md](tools/README.md) · [Firmware OTA](docs/protocol/ota-firmware.md)
+
 ## Documentation
 
 | Doc | Description |
 |-----|-------------|
 | [Getting started](docs/getting-started.md) | Layout, Bun, connect a badge |
+| [Tools](tools/README.md) | Firmware download + APK unpack |
 | [Protocol overview](docs/protocol/overview.md) | Architecture |
 | [GATT](docs/protocol/gatt.md) | UUIDs / TX / RX |
 | [Framing](docs/protocol/framing.md) | Packet layout |
 | [File transfer](docs/protocol/file-transfer.md) | Chunked upload + CRC32 |
 | [Media](docs/protocol/media.md) | IDs, list, delete |
+| [Firmware OTA](docs/protocol/ota-firmware.md) | JieLi OTA catalog + zip URLs |
 | [Commands](docs/protocol/commands.md) | Opcode tables |
 | [RnD investigation](docs/rnd-investigation.md) | Reference client notes |
 

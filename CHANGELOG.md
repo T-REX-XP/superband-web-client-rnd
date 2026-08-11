@@ -12,6 +12,11 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 - Broader media list parsing robustness across firmware variants
 - Video / GIF push helpers in the manager UI
 
+### Added
+
+- Firmware OTA investigation notes (`docs/protocol/ota-firmware.md`)
+- `tools/` helpers: `download-firmware.sh`, `unpack-apk.sh`, `probe-ota.mjs`
+
 ### Changed
 
 - Repository layout: `src/` → `src/`, `webapp/` → `src/debug-console/`, `artifact/` → `artifacts/`, unpack tree under `research/`

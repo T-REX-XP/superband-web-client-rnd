@@ -16,6 +16,8 @@ Documentation for the SuperBand electronic badge BLE stack from RnD investigatio
 | [File transfer](protocol/file-transfer.md) | Module `0x01` — chunked upload, CRC32, verify |
 | [Command reference](protocol/commands.md) | All modules, opcodes, types, error codes |
 | [Packet examples](protocol/examples.md) | Hex dumps of real frames |
+| [Firmware OTA](protocol/ota-firmware.md) | JieLi OTA check API, DG01 / BJ-1 / LJ733 zip URLs |
+| [Tools](../tools/README.md) | `download-firmware.sh`, `unpack-apk.sh`, `probe-ota.mjs` |
 | [Web client](web-console.md) | UI guide for `src/` manager and `src/debug-console/` console |
 | [RnD investigation](rnd-investigation.md) | Reference client sources map and investigation notes |
 
