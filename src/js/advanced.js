@@ -312,6 +312,28 @@ export function bindAdvanced(ctx) {
       .refreshDialInfo({ timeoutMs: 6000 })
       .then((info) => {
         toast(`Dial ${info.width}×${info.height} alg=${info.algorithm}`, 'ok');
+        const snap = client.getSnapshot?.() || {};
+        const capture = {
+          capturedAt: new Date().toISOString(),
+          source: 'web-console-advanced',
+          name: snap.name || null,
+          dialInfo: info,
+          dis: {
+            model: snap.model ?? null,
+            firmware: snap.firmware ?? null,
+            hardware: snap.hardware ?? null,
+          },
+          battery: snap.battery ?? null,
+        };
+        const blob = new Blob([JSON.stringify(capture, null, 2) + '\n'], {
+          type: 'application/json',
+        });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `dial-info_${(capture.name || 'badge').replace(/\W+/g, '_')}.json`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        log({ msg: `Dial-info capture downloaded (alg=${info.algorithm} ${info.width}×${info.height})`, level: 'ok' });
       })
       .catch((e) => toast(e.message, 'err'));
   });

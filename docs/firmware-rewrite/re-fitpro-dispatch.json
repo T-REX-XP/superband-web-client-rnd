@@ -1,0 +1,243 @@
+{
+  "app_path": "research/firmware/analysis/bj1_unpack/files/app.bin",
+  "app_size": 979721,
+  "literals": {
+    "embedded_frames": {
+      "dial_info_req_cd200102": [],
+      "dial_status_req_cd200101": [],
+      "legacy_pair_cd12010a": []
+    },
+    "module_cmd_triplets": {
+      "mod1f_cmd_data": {
+        "count": 1,
+        "offsets_sample": [
+          577598
+        ]
+      },
+      "mod1f_cmd_start": {
+        "count": 1,
+        "offsets_sample": [
+          73614
+        ]
+      },
+      "mod1f_cmd_finish": {
+        "count": 0,
+        "offsets_sample": []
+      },
+      "mod20_cmd_status": {
+        "count": 2,
+        "offsets_sample": [
+          712028,
+          712250
+        ]
+      },
+      "mod20_cmd_info": {
+        "count": 0,
+        "offsets_sample": []
+      },
+      "mod1a_legacy": {
+        "count": 42,
+        "offsets_sample": [
+          38613,
+          43168,
+          47609,
+          48584,
+          81177,
+          117729,
+          128151,
+          164090,
+          177401,
+          200227,
+          212393,
+          254781,
+          287464,
+          361334,
+          361394,
+          366729,
+          439223,
+          447861,
+          447941,
+          448021,
+          448237,
+          527430,
+          530884,
+          531968
+        ]
+      }
+    },
+    "status_1000_be_count": 1,
+    "status_1000_le_count": 2,
+    "status_1000_le_sample": [
+      {
+        "offset": 912892,
+        "nearby_small_bytes": [
+          3,
+          1,
+          5,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9,
+          9
+        ]
+      },
+      {
+        "offset": 919604,
+        "nearby_small_bytes": [
+          7,
+          6,
+          7,
+          1,
+          3,
+          1,
+          7,
+          8
+        ]
+      }
+    ]
+  },
+  "dial_id": {
+    "5538_u32be": [],
+    "5538_u32le": [
+      924228
+    ],
+    "5538_u16be": [
+      97635,
+      197265,
+      275787,
+      275839,
+      275851,
+      275875,
+      365390,
+      394994,
+      408917,
+      409073,
+      571709,
+      726757,
+      729743,
+      729813,
+      729981,
+      730085
+    ],
+    "5538_u16le": [
+      160148,
+      196182,
+      197022,
+      197266,
+      208886,
+      275788,
+      275840,
+      275852,
+      275876,
+      521054,
+      557376,
+      636284,
+      648871,
+      726758,
+      726808,
+      729600
+    ]
+  },
+  "strings": [
+    {
+      "needle": "watch.sty",
+      "offset": 898470,
+      "string": "storage/res_fs_dev/C/watch.sty"
+    },
+    {
+      "needle": "res_nor_dial",
+      "offset": 917684,
+      "string": "res_nor_dial"
+    },
+    {
+      "needle": "JLHWJPEG",
+      "offset": 917008,
+      "string": "JLHWJPEG"
+    },
+    {
+      "needle": "jpeg_decode",
+      "offset": 899215,
+      "string": "jpeg_decode"
+    },
+    {
+      "needle": "tp_cst816d",
+      "offset": 896936,
+      "string": "tp_cst816d"
+    },
+    {
+      "needle": "lcd_init",
+      "offset": 897402,
+      "string": "lcd_init"
+    },
+    {
+      "needle": "lcd_backlight",
+      "offset": 897135,
+      "string": "lcd_backlight"
+    },
+    {
+      "needle": "storage/nor_ui",
+      "offset": 896848,
+      "string": "storage/nor_ui"
+    },
+    {
+      "needle": "storage/nor_ui",
+      "offset": 896863,
+      "string": "storage/nor_ui/C/"
+    },
+    {
+      "needle": "bgp_wa",
+      "offset": 917037,
+      "string": "/bgp_wa%d"
+    },
+    {
+      "needle": "bgp_wa",
+      "offset": 917791,
+      "string": "/bgp_wa%d.avi"
+    },
+    {
+      "needle": "bgp_wa",
+      "offset": 920001,
+      "string": "storage/res_fs_dev/C/bgp_wa%d"
+    },
+    {
+      "needle": "bgp_wa",
+      "offset": 920417,
+      "string": "storage/res_fs_dev/C/bgp_wa%d.avi"
+    },
+    {
+      "needle": "AC707N",
+      "offset": 743624,
+      "string": "AC707N_V1.0.0-@20250403-$14f6057c"
+    },
+    {
+      "needle": "JLOTA",
+      "offset": 896967,
+      "string": "JLOTA"
+    },
+    {
+      "needle": "ble_ota",
+      "offset": 752124,
+      "string": "Zble_ota.bin"
+    },
+    {
+      "needle": "dial",
+      "offset": 917692,
+      "string": "res_nor_dial"
+    },
+    {
+      "needle": "dial",
+      "offset": 930732,
+      "string": "dial"
+    }
+  ],
+  "dg01_diff": {
+    "same_size": false,
+    "len_a": 979721,
+    "len_b": 979778
+  }
+}

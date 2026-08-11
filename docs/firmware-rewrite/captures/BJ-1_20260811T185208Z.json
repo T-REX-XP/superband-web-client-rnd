@@ -1,0 +1,9 @@
+{
+  "capturedAt": "2026-08-11T18:52:20Z",
+  "address": "B5:2F:EA:08:07:7A",
+  "name": "BJ-1",
+  "error": "GATT connect timeout",
+  "detail": "TimeoutError",
+  "dialInfo": null,
+  "note": "Badge may be asleep, out of range for connect, or connected to another central."
+}

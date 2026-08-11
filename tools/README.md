@@ -8,6 +8,8 @@ Helper scripts for local RnD (firmware catalog / download / OTA send, APK unpack
 | [`send-ota.sh`](send-ota.sh) | Prepare `app.ufw` and flash over BLE (`AE00`) or print USB forced-update hints |
 | [`send-ota-ble.py`](send-ota-ble.py) | BLE scan / AE00 probe / `openwearota` flash helper (used by `send-ota.sh`) |
 | [`analyze-firmware.sh`](analyze-firmware.sh) | Unpack JieLi UFW + summarize SoC / peripherals → `research/firmware/analysis/` |
+| [`map-fitpro-dispatch.py`](map-fitpro-dispatch.py) | Static FitPro `0x1F`/`0x20` seed map in `app.bin` → `docs/firmware-rewrite/` |
+| [`capture-dial-info.py`](capture-dial-info.py) | Live BLE dial-info capture (bleak) → `docs/firmware-rewrite/captures/` |
 | [`probe-ota.mjs`](probe-ota.mjs) | JSON probe of `config/app` (same check as the Android client) |
 | [`unpack-apk.sh`](unpack-apk.sh) | Extract `.apks` → `research/unpacked/apks` and optionally decompile with jadx |
 
@@ -63,4 +65,15 @@ bun tools/probe-ota.mjs --name BJ-1 --version V32172
 
 Outputs are gitignored under `research/firmware/`, `research/unpacked/`, and `tools/.venv-ota/`.
 
-See [Firmware OTA](../docs/protocol/ota-firmware.md), [Security](../docs/protocol/security.md), [Firmware hardware](../docs/protocol/firmware-hw.md).
+### Firmware rewrite helpers
+
+```bash
+./tools/analyze-firmware.sh --preset bj1
+python3 tools/map-fitpro-dispatch.py
+# bleak venv recommended:
+python3 -m venv /tmp/superband-blevenv && /tmp/superband-blevenv/bin/pip install bleak
+/tmp/superband-blevenv/bin/python tools/capture-dial-info.py
+make -C firmware/ac707n-open test
+```
+
+See [Firmware rewrite](../docs/firmware-rewrite/README.md), [Firmware contract](../docs/protocol/firmware-contract.md), [Firmware OTA](../docs/protocol/ota-firmware.md), [Security](../docs/protocol/security.md), [Firmware hardware](../docs/protocol/firmware-hw.md).

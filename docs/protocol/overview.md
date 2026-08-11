@@ -64,3 +64,4 @@ flowchart LR
 ## Related docs
 
 - [GATT](gatt.md) · [Framing](framing.md) · [Commands](commands.md) · [Examples](examples.md)
+- [Dial upload](dial-upload.md) · [Firmware contract](firmware-contract.md) · [Firmware rewrite](../firmware-rewrite/README.md)

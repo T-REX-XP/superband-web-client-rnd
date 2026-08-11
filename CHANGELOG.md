@@ -20,6 +20,8 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Added
 
+- Clean-room firmware track: `docs/firmware-rewrite/`, `docs/protocol/firmware-contract.md`, portable dial31 scaffold `firmware/ac707n-open/`, `tools/map-fitpro-dispatch.py`, `tools/capture-dial-info.py`
+- Advanced dial-info probe downloads a JSON capture on success
 - Firmware OTA investigation notes (`docs/protocol/ota-firmware.md`)
 - Security research findings (`docs/protocol/security.md`)
 - `tools/` helpers: `download-firmware.sh`, `send-ota.sh`, `send-ota-ble.py`, `analyze-firmware.sh`, `unpack-apk.sh`, `probe-ota.mjs`

@@ -158,6 +158,8 @@ Details: [tools/README.md](tools/README.md) · [Firmware OTA](docs/protocol/ota-
 | [Firmware OTA](docs/protocol/ota-firmware.md) | JieLi OTA catalog + zip URLs + send-ota |
 | [Security research](docs/protocol/security.md) | OTA / UART / CDN risk findings |
 | [Firmware hardware](docs/protocol/firmware-hw.md) | AC707N SoC / peripherals from UFW |
+| [Firmware contract](docs/protocol/firmware-contract.md) | Clean-room on-device contract for open FW |
+| [Firmware rewrite](docs/firmware-rewrite/README.md) | SDK gate · RE · dial-info · Stage 1/2 scaffold |
 | [Commands](docs/protocol/commands.md) | Opcode tables |
 | [RnD investigation](docs/rnd-investigation.md) | Reference client notes |
 

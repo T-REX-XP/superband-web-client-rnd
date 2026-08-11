@@ -119,3 +119,5 @@ Inter-chunk pacing in the app is ~6 ms; the web client writes serially with a 
 - [System info](system-info.md) (Baji probe behavior)
 - [Web console](../web-console.md)
 - [Firmware hardware](firmware-hw.md)
+- [Firmware contract](firmware-contract.md) (clean-room open FW target)
+- [Dial-info capture](../firmware-rewrite/dial-info-capture.md)

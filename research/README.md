@@ -14,4 +14,4 @@ Populate with:
 ./tools/download-firmware.sh --preset all
 ```
 
-See [tools/README.md](../tools/README.md) and [docs/rnd-investigation.md](../docs/rnd-investigation.md).
+See [tools/README.md](../tools/README.md), [docs/rnd-investigation.md](../docs/rnd-investigation.md), and the clean-room track in [docs/firmware-rewrite/](../docs/firmware-rewrite/) + [`firmware/ac707n-open/`](../firmware/ac707n-open/).
