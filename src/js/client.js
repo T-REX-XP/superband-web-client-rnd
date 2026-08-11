@@ -899,25 +899,64 @@ export class SuperBandClient extends EventTarget {
     return this._requireActive().transferFile(fileBytes, opts);
   }
 
+  /** True if any connected session is mid-transfer. */
+  get anyTransferring() {
+    for (const session of this._sessions.values()) {
+      if (session.connected && session._transferring) return true;
+    }
+    return false;
+  }
+
   /**
-   * Push the same image to every connected badge (sequential).
+   * Push the same image to every connected badge in parallel (one GATT write stream each).
+   * @param {Uint8Array} fileBytes
+   * @param {{ onProgress?: (pct: number, detail?: object) => void } & object} opts
    */
   async transferFileToAll(fileBytes, opts = {}) {
-    const results = [];
-    for (const session of this._sessions.values()) {
-      if (!session.connected) continue;
-      const prev = this.activeId;
-      this.activeId = session.id;
-      this._emitSessions();
-      try {
-        const r = await session.transferFile(fileBytes, opts);
-        results.push({ ok: true, ...r, name: session.name });
-      } catch (e) {
-        results.push({ ok: false, error: e.message, sessionId: session.id, name: session.name });
-      } finally {
-        this.activeId = prev;
+    const { onProgress = null, ...rest } = opts;
+    const targets = [...this._sessions.values()].filter((s) => s.connected);
+    if (!targets.length) return [];
+
+    const pctById = new Map(targets.map((s) => [s.id, 0]));
+    const emitAgg = () => {
+      if (!onProgress) return;
+      let sum = 0;
+      for (const p of pctById.values()) sum += p;
+      const overall = Math.round(sum / targets.length);
+      const perBadge = targets.map((s) => ({
+        sessionId: s.id,
+        name: s.name,
+        percent: pctById.get(s.id) ?? 0,
+      }));
+      onProgress(overall, { perBadge });
+    };
+
+    this._emitSessions();
+    const settled = await Promise.allSettled(
+      targets.map((session) =>
+        session.transferFile(fileBytes, {
+          ...rest,
+          onProgress: (pct) => {
+            pctById.set(session.id, Number(pct) || 0);
+            emitAgg();
+          },
+        }),
+      ),
+    );
+
+    const results = settled.map((outcome, i) => {
+      const session = targets[i];
+      if (outcome.status === 'fulfilled') {
+        return { ok: true, ...outcome.value, name: session.name };
       }
-    }
+      return {
+        ok: false,
+        error: outcome.reason?.message || String(outcome.reason),
+        sessionId: session.id,
+        name: session.name,
+      };
+    });
+
     this._emitSessions();
     this._emitSnapshot();
     return results;

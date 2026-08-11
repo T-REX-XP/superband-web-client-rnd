@@ -189,7 +189,7 @@ function renderSnapshot(snap) {
 function updatePushChecklist() {
   const connected = client.connected;
   const imageReady = !!prepared;
-  const idle = !transferring && !client.active?.getSnapshot()?.transferring;
+  const idle = !transferring && !client.anyTransferring;
   const map = { conn: connected, image: imageReady, idle };
   for (const [key, ok] of Object.entries(map)) {
     const li = document.querySelector(`[data-check="${key}"]`);
@@ -373,20 +373,32 @@ async function pushAll() {
   bar.style.width = '0%';
   transferring = true;
   updatePushChecklist();
+  log({
+    msg: `Simultaneous push to ${client.sessionCount} badges…`,
+    level: 'info',
+  });
   try {
     const functionType = Number($('#functionType').value) || FunctionType.BACKGROUND;
     const results = await client.transferFileToAll(prepared.bytes, {
       fileType: FileType.IMAGE,
       functionType,
       allocateId: $('#allocMedia').checked,
-      onProgress: (pct) => {
+      onProgress: (pct, detail) => {
         bar.style.width = `${pct}%`;
+        if (detail?.perBadge?.length) {
+          const bits = detail.perBadge
+            .map((b) => `${b.name || b.sessionId} ${b.percent}%`)
+            .join(' · ');
+          bar.title = bits;
+        }
       },
     });
     const ok = results.filter((r) => r.ok).length;
     const fail = results.length - ok;
     toast(
-      fail ? `Pushed to ${ok}/${results.length} badges` : `Pushed to all ${ok} badges`,
+      fail
+        ? `Simultaneous push: ${ok}/${results.length} ok`
+        : `Pushed to all ${ok} badges (simultaneous)`,
       fail ? 'err' : 'ok',
     );
     for (const r of results) {

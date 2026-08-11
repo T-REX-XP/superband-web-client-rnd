@@ -30,6 +30,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Changed
 
+- **Push to all** runs **simultaneous** uploads on every connected badge (parallel GATT streams; aggregated progress)
 - Default dial size **360×360**; round mask on by default; push checklist (connected / image / idle)
 - Badge picker filters include `BJ*`, `DG*`, `_V*`, mfg `0xAA01`
 - Pages deploy also publishes `debug-console/`

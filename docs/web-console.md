@@ -34,7 +34,7 @@ Production static site is published to **GitHub Pages** by [`.github/workflows/p
 | Device rail | Multiple concurrent badges — click to make active, × to drop one |
 | Glance strip | Active badge: name, model, firmware, battery, hardware, free storage |
 | Device | Full DIS + battery + optional Baji storage/protocol; refresh; re-pair |
-| Push image | **Push to active** or **Push to all**; checklist; dial 360×360; round mask |
+| Push image | **Push to active** or **Push to all** (simultaneous GATT transfers); checklist; dial 360×360; round mask |
 | Media library | Allocate ID, list, delete (auto-refresh attempted after connect / push) |
 | Advanced · OTA | CDN presets (BJ-1 / DG01), local zip/ufw, catalog probe, BLE RCSP flash |
 | Advanced · GATT | Probe active services / AE00 picker |
