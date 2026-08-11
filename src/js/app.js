@@ -287,7 +287,7 @@ async function rebuildPreview() {
     $('#dialPlaceholder').hidden = true;
     $('#dial').classList.toggle('round', $('#roundMask').checked);
     $('#imageMeta').textContent =
-      `${file.name} → ${prepared.width}×${prepared.height} JPEG · ${formatBytes(prepared.bytes.length)}`;
+      `${file.name} → ${prepared.width}×${prepared.height} JPEG 4:4:4 · ${formatBytes(prepared.bytes.length)}`;
     updatePushChecklist();
   } catch (e) {
     prepared = null;

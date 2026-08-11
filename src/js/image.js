@@ -2,6 +2,8 @@
  * Prepare images for badge push (default dial 360×360 — common round IPS badge).
  */
 
+import { encodeBaselineJpeg444, describeJpeg } from './jpeg444.js';
+
 export const DEFAULT_DIAL = { width: 360, height: 360 };
 
 /**
@@ -67,17 +69,21 @@ export async function prepareDialImage(source, {
   ctx.drawImage(source, dx, dy, dw, dh);
   if (round) ctx.restore();
 
-  const blob = await new Promise((resolve, reject) => {
-    canvas.toBlob(
-      (b) => (b ? resolve(b) : reject(new Error('JPEG encode failed'))),
-      'image/jpeg',
-      quality,
+  // FitPro JpegRulesChecker / TurboJPEG path requires baseline JFIF 4:4:4.
+  // canvas.toBlob() emits 4:2:0 (+ often ICC) → MCU fail on 360×360 → black dial.
+  const q = Math.round(Math.max(1, Math.min(100, (quality <= 1 ? quality * 100 : quality))));
+  const imageData = ctx.getImageData(0, 0, width, height);
+  const bytes = encodeBaselineJpeg444(imageData, { quality: q || 50 });
+  const meta = describeJpeg(bytes);
+  if (!meta.ok) {
+    throw new Error(
+      `Dial JPEG failed device rules (jfif=${meta.jfif} 444=${meta.is444} mcu=${meta.mcuOk})`,
     );
-  });
+  }
 
-  const bytes = new Uint8Array(await blob.arrayBuffer());
-  const previewUrl = canvas.toDataURL('image/jpeg', quality);
-  return { blob, bytes, width, height, previewUrl };
+  const blob = new Blob([bytes], { type: 'image/jpeg' });
+  const previewUrl = URL.createObjectURL(blob);
+  return { blob, bytes, width, height, previewUrl, jpeg: meta };
 }
 
 /**

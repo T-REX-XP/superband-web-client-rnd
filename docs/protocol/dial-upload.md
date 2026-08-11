@@ -58,6 +58,20 @@ Request polls; response payload is **u32BE status**:
 | `8` | Theme id not found |
 | `9` | Upgrade too frequent |
 
+## JPEG rules (critical)
+
+Firmware / app `JpegRulesChecker` (+ TurboJPEG `subsample=0`) require:
+
+| Rule | Requirement |
+|------|-------------|
+| Baseline | SOF0 (`FFC0`), not progressive |
+| JFIF | APP0 `JFIF` present |
+| Chroma | **4:4:4** (component sampling `0x11` for Y/Cb/Cr) — not browser 4:2:0 |
+| MCU | Width/height multiple of **8** (4:4:4). 360×360 fails MCU under 4:2:0 (`%16`) |
+| Extra | No ICC APP2 / restart markers preferred |
+
+Browser `canvas.toBlob('image/jpeg')` typically emits **4:2:0 + ICC**. Transfer can still return status `2`, but the dial stays **black**. The web client re-encodes with `src/js/jpeg444.js`.
+
 ## Upload sequence (custom background JPEG)
 
 Matches SuperBand `PicturePush` → `WatchThemeTransferManager` → `gh3` for a single custom background:

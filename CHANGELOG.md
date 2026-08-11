@@ -12,6 +12,11 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 - Broader media list parsing robustness across firmware variants
 - Video / GIF push helpers in the manager UI
 
+### Fixed
+
+- Dial push black screen: encode **baseline JFIF 4:4:4** JPEG (APK TurboJPEG / JpegRulesChecker); browser `toBlob` 4:2:0 failed MCU on 360×360
+- Dial upgrade status codes mapped to readable errors (e.g. status `4` = charging)
+
 ### Added
 
 - Firmware OTA investigation notes (`docs/protocol/ota-firmware.md`)
