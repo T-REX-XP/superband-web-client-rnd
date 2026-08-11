@@ -37,7 +37,7 @@ These are **not** used for Baji media/file commands.
 
 ## Web console mapping
 
-`web/js/ble.js` connects to the UART service, enables notify on `…003`, writes to `…002`, and optionally reads battery.
+`src/js/ble.js` connects to the UART service, enables notify on `…003`, writes to `…002`, and optionally reads battery.
 
 ## Related
 

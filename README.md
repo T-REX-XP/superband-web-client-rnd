@@ -7,9 +7,8 @@ Unofficial RnD investigation of the **SuperBand / electronic badge** Bluetooth L
 
 | Piece | Path | Purpose |
 |-------|------|---------|
+| Application sources | [`src/`](src/) | Bun Web Bluetooth manager + debug console |
 | Protocol docs | [`docs/`](docs/) | GATT, framing, media, file transfer |
-| Web manager | [`web/`](web/) | Bun + Web Bluetooth UI (primary client) |
-| Debug console | [`tools/debug-console/`](tools/debug-console/) | Raw hex / protocol probing |
 | Artifacts | [`artifacts/`](artifacts/) | Local APKs (gitignored) |
 | Research | [`research/`](research/) | Unpacked reference client (gitignored) |
 
@@ -21,12 +20,13 @@ Changelog: [CHANGELOG.md](CHANGELOG.md)
 
 ```
 .
-├── web/                 # Primary Web Bluetooth manager (Bun)
-├── tools/debug-console/ # Low-level protocol console
-├── docs/                # Protocol + usage documentation
-├── artifacts/           # Local APK bundles (not committed)
-├── research/            # Local unpacked/jadx tree (not committed)
-└── .github/workflows/   # Validate + GitHub Pages
+├── src/                   # All application sources
+│   ├── js/ css/ …         # Primary Web Bluetooth manager (Bun)
+│   └── debug-console/     # Low-level protocol console
+├── docs/                  # Protocol + usage documentation
+├── artifacts/             # Local APK bundles (not committed)
+├── research/              # Local unpacked/jadx tree (not committed)
+└── .github/workflows/     # Validate + GitHub Pages
 ```
 
 ## Device
@@ -72,7 +72,7 @@ Chrome / Edge only. Prefer the hosted GitHub Pages build (HTTPS is required for 
 Requires [Bun](https://bun.sh).
 
 ```bash
-cd web
+cd src
 bun install
 bun run dev
 # → http://localhost:8787
@@ -81,16 +81,15 @@ bun run dev
 Production build / Pages-shaped preview:
 
 ```bash
-cd web
+cd src
 bun run build
 bun run preview:dist
 # → http://localhost:8788
 
-# Match GitHub project Pages asset paths:
 BASE_PATH=/superband-web-client-rnd/ bun run build
 ```
 
-More: [web/README.md](web/README.md) · [docs/web-console.md](docs/web-console.md)
+More: [src/README.md](src/README.md) · [docs/web-console.md](docs/web-console.md)
 
 ---
 
@@ -99,7 +98,7 @@ More: [web/README.md](web/README.md) · [docs/web-console.md](docs/web-console.m
 Low-level console (raw hex, arbitrary Baji packets):
 
 ```bash
-cd tools/debug-console
+cd src/debug-console
 python3 -m http.server 8765
 # → http://localhost:8765
 ```
@@ -126,7 +125,7 @@ python3 -m http.server 8765
 | Workflow | Purpose |
 |----------|---------|
 | [Validate](.github/workflows/validate.yml) | Bun install + production build check |
-| [Pages](.github/workflows/pages.yml) | Build `web/` and deploy to GitHub Pages |
+| [Pages](.github/workflows/pages.yml) | Build `src/` and deploy to GitHub Pages |
 
 Enable **Settings → Pages → Source: GitHub Actions** before the first deploy.  
 Manual deploy: **Actions → Pages → Run workflow**.

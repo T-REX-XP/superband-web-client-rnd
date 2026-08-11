@@ -14,7 +14,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ### Changed
 
-- Repository layout: `src/` → `web/`, `webapp/` → `tools/debug-console/`, `artifact/` → `artifacts/`, unpack tree under `research/`
+- Repository layout: `src/` → `src/`, `webapp/` → `src/debug-console/`, `artifact/` → `artifacts/`, unpack tree under `research/`
 
 ## [1.0.0] - 2026-08-11
 
@@ -22,9 +22,9 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 - RnD investigation docs for SuperBand / electronic badge BLE (Baji UART protocol)
 - Protocol reference under `docs/` (GATT, framing, system info, media, file transfer, commands, examples)
-- Web Bluetooth management client in `web/` (Bun): connect, device info, image push, media library
-- High-level `SuperBandClient` API (`web/js/client.js`) + dial image prep (`web/js/image.js`)
-- Debug console in `tools/debug-console/` for raw hex / arbitrary Baji packets
+- Web Bluetooth management client in `src/` (Bun): connect, device info, image push, media library
+- High-level `SuperBandClient` API (`src/js/client.js`) + dial image prep (`src/js/image.js`)
+- Debug console in `src/debug-console/` for raw hex / arbitrary Baji packets
 - GitHub Actions: Validate (Bun build) and Pages deploy (static site)
 - Production build with `BASE_PATH` for GitHub project Pages, `.nojekyll`, and `404.html`
 - Root `README.md` with device listing link and hosted Pages URL

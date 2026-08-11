@@ -7,8 +7,9 @@
 ├── .github/workflows/   # Pages deploy + validate (Bun)
 ├── artifacts/           # Local APKs (gitignored)
 ├── docs/                # This documentation
-├── web/                 # Web Bluetooth management client (primary)
-├── tools/debug-console/ # Low-level protocol debug console
+├── src/                 # All application sources
+│   ├── …                # Primary Web Bluetooth manager (Bun)
+│   └── debug-console/   # Low-level protocol debug console
 └── research/unpacked/   # Extracted APK + jadx sources (gitignored)
 ```
 
@@ -24,7 +25,7 @@
 Requires [Bun](https://bun.sh).
 
 ```bash
-cd web
+cd src
 bun install
 bun run dev
 ```
@@ -42,7 +43,7 @@ See [Web client](web-console.md) and [File transfer](protocol/file-transfer.md).
 ### Debug console (optional)
 
 ```bash
-cd tools/debug-console && python3 -m http.server 8765
+cd src/debug-console && python3 -m http.server 8765
 ```
 
 ## Unpack the APK (optional)

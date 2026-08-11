@@ -46,7 +46,7 @@ jadx -d research/unpacked/jadx --show-bad-code --no-res research/unpacked/apks/b
 5. Read `ProtocolEncoder.buildPacket` / `parsePacket` for wire layout
 6. Read `FileTransferService.buildFileInfoPayload` for TRANSFER_START TLV (differs from encoder’s generic `FileInfo` builder)
 7. Confirm opcode numeric values (including those aliased via `AttrAndFunCode` constants)
-8. Implement codec in `web/js/protocol.js` (and the debug console copy) and cross-check hex against encoder math
+8. Implement codec in `src/js/protocol.js` (and the debug console copy) and cross-check hex against encoder math
 
 ## Gotchas
 

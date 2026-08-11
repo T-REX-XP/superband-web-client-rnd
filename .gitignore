@@ -6,8 +6,8 @@ research/unpacked/
 # Dependencies & build output
 node_modules/
 dist/
-web/dist/
-web/node_modules/
+src/dist/
+src/node_modules/
 
 # Misc
 *.log

@@ -1,27 +1,27 @@
 # Web clients
 
-Two frontends share the same Baji protocol implementation ideas:
+All application UI sources live under [`../src/`](../src/).
 
 | App | Path | Audience |
 |-----|------|----------|
-| **Manager** (primary) | [`../web/`](../web/) | Day-to-day badge management |
-| **Debug console** | [`../tools/debug-console/`](../tools/debug-console/) | Raw frames, hex, protocol probing |
+| **Manager** (primary) | [`../src/`](../src/) | Day-to-day badge management |
+| **Debug console** | [`../src/debug-console/`](../src/debug-console/) | Raw frames, hex, protocol probing |
 
 ---
 
-## Manager (`web/`)
+## Manager (`src/`)
 
 ### Run
 
 ```bash
-cd /opt/superband/web
+cd src
 bun install
 bun run dev
 ```
 
 Open http://localhost:8787 (Chrome / Edge). Uses Bun’s HTML bundler + HMR (`server.ts`).
 
-Production static site is published to **GitHub Pages** by [`.github/workflows/pages.yml`](../.github/workflows/pages.yml) (Bun build with `BASE_PATH=/<repo>/` → `web/dist` → Pages). That base path avoids broken assets when the site is served from a project subdirectory. Enable **Settings → Pages → Source: GitHub Actions**, then push to `main`/`master` or run the workflow manually.
+Production static site is published to **GitHub Pages** by [`.github/workflows/pages.yml`](../.github/workflows/pages.yml) (Bun build with `BASE_PATH=/<repo>/` → `src/dist` → Pages). Enable **Settings → Pages → Source: GitHub Actions**, then push to `main`/`master` or run the workflow manually.
 
 ### Features
 
@@ -52,14 +52,14 @@ Production static site is published to **GitHub Pages** by [`.github/workflows/p
 
 ---
 
-## Debug console (`tools/debug-console/`)
+## Debug console (`src/debug-console/`)
 
 ```bash
-cd /opt/superband/tools/debug-console
+cd src/debug-console
 python3 -m http.server 8765
 ```
 
-Use for raw hex writes, arbitrary module/command packets, and verbose wire inspection. See earlier console tabs: Control / Transfer / Raw / Protocol.
+Use for raw hex writes, arbitrary module/command packets, and verbose wire inspection.
 
 ---
 
