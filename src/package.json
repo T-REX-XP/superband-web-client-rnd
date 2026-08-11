@@ -6,8 +6,9 @@
   "scripts": {
     "dev": "bun run server.ts",
     "start": "bun run server.ts",
-    "build": "bun build ./index.html --outdir=dist --minify",
-    "preview": "bun run server.ts"
+    "build": "bun run build.ts",
+    "preview": "bun run server.ts",
+    "preview:dist": "bun run preview.ts"
   },
   "devDependencies": {
     "@types/bun": "latest"

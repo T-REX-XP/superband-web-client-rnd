@@ -1,0 +1,41 @@
+name: Validate
+
+on:
+  push:
+    paths:
+      - "src/**"
+      - ".github/workflows/validate.yml"
+  pull_request:
+    paths:
+      - "src/**"
+      - ".github/workflows/validate.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install and build client
+        working-directory: src
+        env:
+          # Simulate project Pages path during CI
+          BASE_PATH: /superband-web-client-rnd/
+        run: |
+          set -euo pipefail
+          bun install --frozen-lockfile
+          bun run build
+
+      - name: Check dist output
+        run: |
+          set -euo pipefail
+          test -f src/dist/index.html
+          test -f src/dist/.nojekyll
+          test -f src/dist/404.html
+          grep -q '/superband-web-client-rnd/' src/dist/index.html
+          ls -la src/dist/

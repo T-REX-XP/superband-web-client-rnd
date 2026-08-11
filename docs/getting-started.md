@@ -4,6 +4,7 @@
 
 ```
 opt/superband/
+├── .github/workflows/ # Pages deploy + validate (Bun)
 ├── artifact/          # Original .apks
 ├── docs/              # This documentation
 ├── src/               # Web Bluetooth management client (primary)
@@ -53,13 +54,13 @@ unzip artifact/SuperBand_2.1.25_apkcube.apks -d unpacked/apks
 jadx -d unpacked/jadx --show-bad-code --no-res unpacked/apks/base.apk
 ```
 
-Key packages after decompile:
+Key packages from the reference client:
 
 - `com.baji.protocol` — Baji codec and services
 - `com.legend.mywatch.sdk…bluetooth` — GATT UART
 - `xfkj.fitpro.ui.viewmodels.bluetooth` — scan filters
 
-See [Reverse engineering](reverse-engineering.md).
+See [RnD investigation](rnd-investigation.md).
 
 ## Browser notes
 

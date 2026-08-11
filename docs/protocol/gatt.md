@@ -2,7 +2,7 @@
 
 ## Primary UART (Baji data plane)
 
-Configured in decompiled `defpackage.o72` / `defpackage.i10`, used by the MyWatch SDK bluetooth layer.
+Configured in reference client helpers `defpackage.o72` / `defpackage.i10`, used by the MyWatch SDK bluetooth layer.
 
 | Role | UUID | Properties (typical) |
 |------|------|----------------------|

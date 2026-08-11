@@ -1,6 +1,6 @@
 # SuperBand documentation
 
-Documentation for the SuperBand electronic badge BLE stack, reverse-engineered from **SuperBand 2.1.25** (`com.legend.smartwatch.electronicbadge.android`), and for the Web Bluetooth clients in [`../src/`](../src/) (manager) and [`../webapp/`](../webapp/) (debug console).
+Documentation for the SuperBand electronic badge BLE stack from RnD investigation of **SuperBand 2.1.25** (`com.legend.smartwatch.electronicbadge.android`), and for the Web Bluetooth clients in [`../src/`](../src/) (manager) and [`../webapp/`](../webapp/) (debug console).
 
 ## Contents
 
@@ -17,7 +17,7 @@ Documentation for the SuperBand electronic badge BLE stack, reverse-engineered f
 | [Command reference](protocol/commands.md) | All modules, opcodes, types, error codes |
 | [Packet examples](protocol/examples.md) | Hex dumps of real frames |
 | [Web client](web-console.md) | UI guide for `src/` manager and `webapp/` console |
-| [Reverse engineering](reverse-engineering.md) | APK sources map and how findings were derived |
+| [RnD investigation](rnd-investigation.md) | Reference client sources map and investigation notes |
 
 ## Quick facts
 
@@ -26,3 +26,4 @@ Documentation for the SuperBand electronic badge BLE stack, reverse-engineered f
 - **Transport:** GATT UART `7E400001` / write `…002` / notify `…003`
 - **Chunk size:** 200 bytes · **MTU target:** 512
 - **Manager UI:** `cd src && bun install && bun run dev` → http://localhost:8787
+- **GitHub Pages:** push `src/` to `main`/`master` (see `.github/workflows/pages.yml`)

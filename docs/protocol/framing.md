@@ -58,7 +58,7 @@ CD 00 06 25 01 03 00 01 00
 
 ## Parsing notes
 
-Decompiled `parsePacket` returns a slice that **includes** `commandId` at the start of the “payload” buffer, while also putting `commandId` in `CommandHeader`. Reimplementations should treat:
+Reference client `parsePacket` returns a slice that **includes** `commandId` at the start of the “payload” buffer, while also putting `commandId` in `CommandHeader`. Reimplementations should treat:
 
 - `commandId = byte[8]`
 - `payload = bytes[9 .. 9+payloadLen)`

@@ -14,7 +14,7 @@ This file is the short entry point for the SuperBand / Baji BLE protocol. **Full
 | Command tables | [protocol/commands.md](protocol/commands.md) |
 | Hex examples | [protocol/examples.md](protocol/examples.md) |
 | Web console | [web-console.md](web-console.md) |
-| RE notes | [reverse-engineering.md](reverse-engineering.md) |
+| RnD notes | [rnd-investigation.md](rnd-investigation.md) |
 | Docs home | [README.md](README.md) |
 
 ---

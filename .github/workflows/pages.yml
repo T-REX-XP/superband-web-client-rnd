@@ -1,0 +1,85 @@
+name: Pages
+
+# Deploy the SuperBand Web Bluetooth client whenever src/ changes on the default branch.
+
+on:
+  push:
+    branches:
+      - master
+      - main
+    paths:
+      - "src/**"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Resolve Pages base path
+        id: base
+        run: |
+          set -euo pipefail
+          REPO="${{ github.event.repository.name }}"
+          # user/org sites (*.github.io) are served from domain root
+          if [[ "$REPO" == *.github.io ]]; then
+            echo "path=/" >> "$GITHUB_OUTPUT"
+          else
+            echo "path=/${REPO}/" >> "$GITHUB_OUTPUT"
+          fi
+          echo "Base path: $(tail -1 "$GITHUB_OUTPUT")"
+
+      - name: Install and build client
+        working-directory: src
+        env:
+          BASE_PATH: ${{ steps.base.outputs.path }}
+        run: |
+          set -euo pipefail
+          bun install --frozen-lockfile
+          bun run build
+
+      - name: Assemble Pages site
+        run: |
+          set -euo pipefail
+          mkdir -p _site
+          cp -a src/dist/. _site/
+          VERSION="$(python3 -c "import json; print(json.load(open('src/package.json'))['version'])")"
+          cat > _site/version.json <<EOF
+          {"version":"${VERSION}","repository":"${{ github.repository }}","built_at":"$(date -u +%Y-%m-%dT%H:%M:%SZ)","source":"pages-workflow","base_path":"${{ steps.base.outputs.path }}"}
+          EOF
+          test -f _site/index.html
+          test -f _site/.nojekyll
+          # Asset URLs must be root-absolute under the repo base (not ./ relative)
+          if ! grep -qE 'href="(/|https?:)' _site/index.html && ! grep -q "href=\"${{ steps.base.outputs.path }}" _site/index.html; then
+            echo "::warning::Unexpected asset href scheme in index.html"
+          fi
+          head -n 12 _site/index.html
+
+      - uses: actions/configure-pages@v6
+        with:
+          enablement: true
+
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+
+      - id: deployment
+        uses: actions/deploy-pages@v5

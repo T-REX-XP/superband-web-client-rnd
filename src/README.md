@@ -23,9 +23,32 @@ Bun serves `index.html` with HMR via `server.ts`.
 
 ```bash
 bun run build
+# GitHub project Pages (subdir):
+BASE_PATH=/superband-web-client-rnd/ bun run build
 ```
 
-Static output goes to `dist/`.
+Static output goes to `dist/` (hashed assets, `.nojekyll`, `404.html`).
+
+Preview the production build:
+
+```bash
+bun run build && bun run preview:dist
+# → http://localhost:8788
+```
+
+## GitHub Pages
+
+Push to `main`/`master` (changes under `src/`) deploys via [`.github/workflows/pages.yml`](../.github/workflows/pages.yml).
+
+The workflow sets `BASE_PATH=/<repo>/` so CSS/JS load correctly on project Pages (not only with a trailing slash).
+
+Manual deploy: **Actions → Pages → Run workflow**.
+
+Repo Settings → Pages → Source must be **GitHub Actions**. Site URL:
+
+`https://<owner>.github.io/<repo>/`
+
+Web Bluetooth requires a secure context — GitHub Pages HTTPS satisfies that.
 
 ## Layout
 

@@ -1,6 +1,6 @@
 /**
  * SuperBand / Baji BLE protocol codec
- * Reverse-engineered from SuperBand 2.1.25
+ * From RnD investigation of SuperBand 2.1.25
  */
 
 export const GATT = {

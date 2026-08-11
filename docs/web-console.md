@@ -21,6 +21,8 @@ bun run dev
 
 Open http://localhost:8787 (Chrome / Edge). Uses Bun’s HTML bundler + HMR (`server.ts`).
 
+Production static site is published to **GitHub Pages** by [`.github/workflows/pages.yml`](../.github/workflows/pages.yml) (Bun build with `BASE_PATH=/<repo>/` → `src/dist` → Pages). That base path avoids broken assets when the site is served from a project subdirectory. Enable **Settings → Pages → Source: GitHub Actions**, then push to `main`/`master` or run the workflow manually.
+
 ### Features
 
 | Area | Actions |

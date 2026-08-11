@@ -53,7 +53,7 @@ flowchart LR
 
 ## Implementation map
 
-| Concern | Android (decompiled) | Web client (`src/`) |
+| Concern | Android reference client | Web client (`src/`) |
 |---------|----------------------|---------------------|
 | Frame build/parse | `com.baji.protocol.utils.ProtocolEncoder` | `src/js/protocol.js` |
 | Orchestration | `BajiProtocolManager` | `src/js/client.js` (`SuperBandClient`) |

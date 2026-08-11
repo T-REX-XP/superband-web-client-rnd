@@ -1,6 +1,6 @@
-# Reverse engineering notes
+# RnD investigation notes
 
-How the protocol docs were derived from **SuperBand 2.1.25**.
+How the protocol docs were derived during RnD investigation of **SuperBand 2.1.25**.
 
 ## Artifact
 
@@ -41,12 +41,12 @@ jadx -d unpacked/jadx --show-bad-code --no-res unpacked/apks/base.apk
 
 1. Extract `.apks` → `base.apk`
 2. String-scan DEX for UUIDs (`ae00`, `7E40…`, `Baji`, `BadgeOK`)
-3. Decompile with jadx
+3. Inspect sources with jadx
 4. Trace `BajiProtocolManager.sendDataToDevice` → GATT write characteristic
 5. Read `ProtocolEncoder.buildPacket` / `parsePacket` for wire layout
 6. Read `FileTransferService.buildFileInfoPayload` for TRANSFER_START TLV (differs from encoder’s generic `FileInfo` builder)
 7. Confirm opcode numeric values (including those aliased via `AttrAndFunCode` constants)
-8. Reimplement codec in `webapp/js/protocol.js` and cross-check hex against encoder math
+8. Implement codec in `src/js/protocol.js` / `webapp/js/protocol.js` and cross-check hex against encoder math
 
 ## Gotchas
 

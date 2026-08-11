@@ -321,7 +321,7 @@ export class SuperBandClient extends EventTarget {
 }
 
 /**
- * Best-effort media list parser (device response layout from RE notes).
+ * Best-effort media list parser (device response layout from RnD notes).
  * Returns as many complete records as fit; tolerates truncated tails.
  */
 export function parseMediaList(payload) {

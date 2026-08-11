@@ -233,6 +233,17 @@ function bind() {
 }
 
 function initSupport() {
+  const secure = window.isSecureContext;
+  if (!secure) {
+    setPill($('#blePill'), 'Needs HTTPS (or localhost)', 'err');
+    $('#btnConnect').disabled = true;
+    $('#btnConnectAny').disabled = true;
+    log({
+      msg: 'Insecure context — Web Bluetooth is blocked. Use GitHub Pages HTTPS or localhost.',
+      level: 'err',
+    });
+    return;
+  }
   if (SuperBandClient.supported()) {
     setPill($('#blePill'), 'Web Bluetooth ready', 'ok');
   } else {
@@ -242,7 +253,24 @@ function initSupport() {
   }
 }
 
+async function initBuildMeta() {
+  const el = $('#buildMeta');
+  if (!el) return;
+  try {
+    // version.json is written next to hashed assets on Pages deploy
+    const res = await fetch(new URL('version.json', import.meta.url));
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data?.version) {
+      el.textContent = `SuperBand v${data.version}${data.built_at ? ` · ${data.built_at}` : ''}`;
+    }
+  } catch {
+    // optional metadata
+  }
+}
+
 bind();
 initSupport();
+initBuildMeta();
 setConnected(false);
 log({ msg: 'SuperBand manager ready. Connect a badge to begin.', level: 'info' });
