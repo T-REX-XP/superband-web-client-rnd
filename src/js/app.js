@@ -1,6 +1,7 @@
 import { SuperBandClient, FileType, FunctionType } from './client.js';
 import { prepareFileForBadge, formatBytes, DEFAULT_DIAL } from './image.js';
 import { REPO_URL } from './protocol.js';
+import { bindAdvanced } from './advanced.js';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
@@ -564,11 +565,12 @@ async function initBuildMeta() {
 }
 
 bind();
+bindAdvanced({ client, log, toast, $ });
 initSupport();
 initBuildMeta();
 syncConnectionChrome();
 updatePushChecklist();
 log({
-  msg: 'SuperBand manager ready. Connect one or more badges (each Add opens the picker).',
+  msg: 'SuperBand manager ready. Connect one or more badges (each Add opens the picker). Advanced tab: OTA / GATT / probes.',
   level: 'info',
 });

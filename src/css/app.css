@@ -355,6 +355,124 @@ button.danger {
   border-color: rgba(255, 123, 123, 0.4);
 }
 
+/* —— Tabs —— */
+.tabs {
+  display: flex;
+  gap: 0.35rem;
+  margin: 0 0 1rem;
+  padding: 0.25rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.25);
+  width: fit-content;
+  max-width: 100%;
+}
+
+.tab {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  padding: 0.45rem 1rem;
+  border-radius: 9px;
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.tab:hover {
+  color: var(--text);
+}
+
+.tab.active {
+  background: rgba(62, 224, 184, 0.14);
+  color: var(--mint);
+}
+
+.tab-panel[hidden] {
+  display: none !important;
+}
+
+.tab-panel.active {
+  animation: rise 0.45s ease both;
+}
+
+.adv-grid {
+  grid-template-columns: 1fr 1fr;
+}
+
+.adv-out {
+  margin: 0;
+  max-height: 220px;
+  overflow: auto;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.35);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--muted);
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+}
+
+.field.grow {
+  flex: 1 1 12rem;
+}
+
+.finding-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.finding-list li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.6rem;
+  align-items: baseline;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 0.84rem;
+}
+
+.finding-list .sev {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--amber);
+}
+
+.finding-list li[data-sev='critical'] .sev,
+.finding-list li[data-sev='high'] .sev {
+  color: var(--rose);
+}
+
+.finding-list li[data-sev='low'] .sev {
+  color: var(--muted);
+}
+
+.finding-list .id {
+  font-family: var(--font-mono);
+  color: var(--mint);
+  font-size: 0.78rem;
+}
+
+.hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
 /* —— Layout —— */
 .grid {
   display: grid;
@@ -364,7 +482,8 @@ button.danger {
 }
 
 @media (max-width: 900px) {
-  .grid {
+  .grid,
+  .adv-grid {
     grid-template-columns: 1fr;
   }
 }

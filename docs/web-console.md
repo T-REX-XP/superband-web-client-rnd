@@ -30,11 +30,16 @@ Production static site is published to **GitHub Pages** by [`.github/workflows/p
 | Area | Actions |
 |------|---------|
 | Hero | Connect / **add another** / disconnect / disconnect all; GitHub links |
+| Tabs | **Manager** (day-to-day) · **Advanced** (OTA / GATT / probes) |
 | Device rail | Multiple concurrent badges — click to make active, × to drop one |
 | Glance strip | Active badge: name, model, firmware, battery, hardware, free storage |
 | Device | Full DIS + battery + optional Baji storage/protocol; refresh; re-pair |
 | Push image | **Push to active** or **Push to all**; checklist; dial 360×360; round mask |
 | Media library | Allocate ID, list, delete (auto-refresh attempted after connect / push) |
+| Advanced · OTA | CDN presets (BJ-1 / DG01), local zip/ufw, catalog probe, BLE RCSP flash |
+| Advanced · GATT | Probe active services / AE00 picker |
+| Advanced · Probes | Legacy `0x1A` handshake, pair, opt-in dial-info |
+| Advanced · Risks | USB chipkey notes + security finding list |
 | Activity | TX/RX and status log |
 | Footer | Repo + protocol links, debug console, build meta |
 
@@ -56,7 +61,10 @@ If only a legacy `0xDC` pair ack arrives (e.g. **BJ-1**), the UI still shows DIS
 |--------|------|
 | `js/protocol.js` | Frame codec (Baji + FitPro CD), CRC32, GATT UUIDs, `REPO_URL` |
 | `js/fitpro.js` | FitPro dial31 builders + dial-info parse |
-| `js/ble.js` | Web Bluetooth UART + DIS + battery |
+| `js/ota-catalog.js` | CDN presets, zip→ufw, tomato probe helpers |
+| `js/jieli-ota.js` | JieLi RCSP OTA over `AE00`/`AE01`/`AE02` |
+| `js/advanced.js` | Advanced tab bindings |
+| `js/ble.js` | Web Bluetooth UART + DIS + battery (+ optional AE00) |
 | `js/client.js` | `SuperBandClient` multi-session hub + per-badge `BadgeSession` |
 | `js/image.js` | Cover-crop + JPEG encode for dial size |
 | `js/app.js` | UI bindings |

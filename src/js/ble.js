@@ -5,6 +5,7 @@ import {
   describePacket,
   toHex,
 } from './protocol.js';
+import { JIELI_OTA } from './jieli-ota.js';
 
 function decodeDisString(dataView) {
   const bytes = new Uint8Array(dataView.buffer, dataView.byteOffset, dataView.byteLength);
@@ -35,6 +36,11 @@ export class SuperBandBle {
     return !!(this.device?.gatt?.connected && this.writeChar);
   }
 
+  /** Open GATT server (may be connected without UART chars during OTA-only use). */
+  get gattServer() {
+    return this.server || this.device?.gatt || null;
+  }
+
   log(msg, level = 'info') {
     this.onLog({ msg, level, ts: Date.now() });
   }
@@ -48,7 +54,12 @@ export class SuperBandBle {
       throw new Error('Web Bluetooth is not available. Use Chromium on HTTPS or localhost.');
     }
 
-    const optionalServices = [GATT.SERVICE, GATT.BATTERY_SERVICE, GATT.DIS_SERVICE];
+    const optionalServices = [
+      GATT.SERVICE,
+      GATT.BATTERY_SERVICE,
+      GATT.DIS_SERVICE,
+      JIELI_OTA.SERVICE,
+    ];
 
     const options = acceptAll
       ? { acceptAllDevices: true, optionalServices }

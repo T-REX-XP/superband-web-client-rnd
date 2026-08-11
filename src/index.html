@@ -35,8 +35,8 @@
           </nav>
         </div>
         <p>
-          Manage your electronic badge over Bluetooth — push faces, inspect storage, and control
-          media.
+          Manage your electronic badge over Bluetooth — push faces, inspect storage, and run
+          advanced OTA / protocol tools.
         </p>
         <div class="hero-cta">
           <span class="status-pill" id="connPill" data-state="">Disconnected</span>
@@ -76,120 +76,255 @@
         </div>
       </header>
 
-      <div class="grid">
-        <section class="section">
-          <h2>Device</h2>
-          <p class="lead">
-            At-a-glance identity from GATT Device Information + battery; storage from Baji when the
-            badge answers.
-          </p>
-          <div class="stack">
-            <div class="stats" id="deviceStats">
-              <div class="stat">
-                <span class="k">Name</span><span class="v" data-field="name">—</span>
-              </div>
-              <div class="stat">
-                <span class="k">Model</span><span class="v" data-field="model">—</span>
-              </div>
-              <div class="stat">
-                <span class="k">Firmware</span><span class="v" data-field="firmware">—</span>
-              </div>
-              <div class="stat">
-                <span class="k">Hardware</span><span class="v" data-field="hardware">—</span>
-              </div>
-              <div class="stat">
-                <span class="k">Software</span><span class="v" data-field="software">—</span>
-              </div>
-              <div class="stat">
-                <span class="k">Manufacturer</span><span class="v" data-field="manufacturer">—</span>
-              </div>
-              <div class="stat">
-                <span class="k">Battery</span><span class="v" data-field="battery">—</span>
-              </div>
-              <div class="stat">
-                <span class="k">Protocol</span><span class="v" data-field="protocol">—</span>
-              </div>
-              <div class="stat">
-                <span class="k">Free storage</span><span class="v" data-field="free">—</span>
-              </div>
-              <div class="stat">
-                <span class="k">Capacity</span><span class="v" data-field="cap">—</span>
-              </div>
-            </div>
-            <div class="row">
-              <button data-need-conn disabled id="btnRefresh">Refresh info</button>
-              <button data-need-conn disabled id="btnPair">Re-pair</button>
-            </div>
-          </div>
-        </section>
+      <div class="tabs" role="tablist" aria-label="App views">
+        <button type="button" class="tab active" role="tab" aria-selected="true" data-tab="manager">
+          Manager
+        </button>
+        <button type="button" class="tab" role="tab" aria-selected="false" data-tab="advanced">
+          Advanced
+        </button>
+      </div>
 
-        <section class="section">
-          <h2>Push image</h2>
-          <p class="lead">
-            Crop to dial size (default 360×360), encode JPEG, upload via Baji transfer. Needs a
-            connected badge and a prepared image — Baji device-info is optional.
-          </p>
-          <div class="stack">
-            <ul class="checklist" id="pushChecklist">
-              <li data-check="conn">Connected</li>
-              <li data-check="image">Image ready</li>
-              <li data-check="idle">Transfer idle</li>
-            </ul>
-            <div class="dial-stage">
-              <div class="dial round" id="dial">
-                <div class="placeholder" id="dialPlaceholder">Choose an image<br />to preview</div>
-                <img id="dialPreview" alt="" hidden />
+      <div id="tab-manager" class="tab-panel active" role="tabpanel">
+        <div class="grid">
+          <section class="section">
+            <h2>Device</h2>
+            <p class="lead">
+              At-a-glance identity from GATT Device Information + battery; storage from Baji when
+              the badge answers.
+            </p>
+            <div class="stack">
+              <div class="stats" id="deviceStats">
+                <div class="stat">
+                  <span class="k">Name</span><span class="v" data-field="name">—</span>
+                </div>
+                <div class="stat">
+                  <span class="k">Model</span><span class="v" data-field="model">—</span>
+                </div>
+                <div class="stat">
+                  <span class="k">Firmware</span><span class="v" data-field="firmware">—</span>
+                </div>
+                <div class="stat">
+                  <span class="k">Hardware</span><span class="v" data-field="hardware">—</span>
+                </div>
+                <div class="stat">
+                  <span class="k">Software</span><span class="v" data-field="software">—</span>
+                </div>
+                <div class="stat">
+                  <span class="k">Manufacturer</span
+                  ><span class="v" data-field="manufacturer">—</span>
+                </div>
+                <div class="stat">
+                  <span class="k">Battery</span><span class="v" data-field="battery">—</span>
+                </div>
+                <div class="stat">
+                  <span class="k">Protocol</span><span class="v" data-field="protocol">—</span>
+                </div>
+                <div class="stat">
+                  <span class="k">Free storage</span><span class="v" data-field="free">—</span>
+                </div>
+                <div class="stat">
+                  <span class="k">Capacity</span><span class="v" data-field="cap">—</span>
+                </div>
               </div>
               <div class="row">
-                <input class="file-input" id="imageInput" type="file" accept="image/*" />
-                <button type="button" id="btnPickImage">Choose image</button>
-                <button class="primary" data-need-conn disabled id="btnPush">Push to active</button>
-                <button data-need-conn disabled id="btnPushAll" hidden>Push to all</button>
+                <button data-need-conn disabled id="btnRefresh">Refresh info</button>
+                <button data-need-conn disabled id="btnPair">Re-pair</button>
               </div>
             </div>
-            <div class="row">
-              <label class="field">
-                Width
-                <input id="dialW" type="number" value="360" min="16" max="1024" />
-              </label>
-              <label class="field">
-                Height
-                <input id="dialH" type="number" value="360" min="16" max="1024" />
-              </label>
-              <label class="field">
-                Role
-                <select id="functionType">
-                  <option value="1" selected>Background</option>
-                  <option value="4">Preview</option>
-                  <option value="2">Sticker</option>
-                </select>
-              </label>
-            </div>
-            <label class="check"
-              ><input type="checkbox" id="roundMask" checked /> Round screen mask</label
-            >
-            <label class="check"
-              ><input type="checkbox" id="allocMedia" checked /> Allocate media ID</label
-            >
-            <p class="lead" id="imageMeta">No image selected.</p>
-            <div class="progress" id="pushProgress" hidden><i id="pushBar"></i></div>
-          </div>
-        </section>
+          </section>
 
-        <section class="section" style="grid-column: 1 / -1">
-          <h2>Media library</h2>
-          <p class="lead">List and delete media IDs stored on the badge.</p>
-          <div class="stack">
-            <div class="row">
-              <button data-need-conn disabled id="btnMediaList">Refresh list</button>
-              <button data-need-conn disabled id="btnAllocId">Allocate ID</button>
-              <span class="status-pill" id="mediaIdPill">Media ID —</span>
+          <section class="section">
+            <h2>Push image</h2>
+            <p class="lead">
+              Crop to dial size (default 360×360), encode JPEG, upload via Baji or FitPro dial31.
+            </p>
+            <div class="stack">
+              <ul class="checklist" id="pushChecklist">
+                <li data-check="conn">Connected</li>
+                <li data-check="image">Image ready</li>
+                <li data-check="idle">Transfer idle</li>
+              </ul>
+              <div class="dial-stage">
+                <div class="dial round" id="dial">
+                  <div class="placeholder" id="dialPlaceholder">Choose an image<br />to preview</div>
+                  <img id="dialPreview" alt="" hidden />
+                </div>
+                <div class="row">
+                  <input class="file-input" id="imageInput" type="file" accept="image/*" />
+                  <button type="button" id="btnPickImage">Choose image</button>
+                  <button class="primary" data-need-conn disabled id="btnPush">Push to active</button>
+                  <button data-need-conn disabled id="btnPushAll" hidden>Push to all</button>
+                </div>
+              </div>
+              <div class="row">
+                <label class="field">
+                  Width
+                  <input id="dialW" type="number" value="360" min="16" max="1024" />
+                </label>
+                <label class="field">
+                  Height
+                  <input id="dialH" type="number" value="360" min="16" max="1024" />
+                </label>
+                <label class="field">
+                  Role
+                  <select id="functionType">
+                    <option value="1" selected>Background</option>
+                    <option value="4">Preview</option>
+                    <option value="2">Sticker</option>
+                  </select>
+                </label>
+              </div>
+              <label class="check"
+                ><input type="checkbox" id="roundMask" checked /> Round screen mask</label
+              >
+              <label class="check"
+                ><input type="checkbox" id="allocMedia" checked /> Allocate media ID</label
+              >
+              <p class="lead" id="imageMeta">No image selected.</p>
+              <div class="progress" id="pushProgress" hidden><i id="pushBar"></i></div>
             </div>
-            <div class="media-list" id="mediaList">
-              <div class="empty">Connect and refresh to load media.</div>
+          </section>
+
+          <section class="section" style="grid-column: 1 / -1">
+            <h2>Media library</h2>
+            <p class="lead">List and delete media IDs (Baji badges only).</p>
+            <div class="stack">
+              <div class="row">
+                <button data-need-conn disabled id="btnMediaList">Refresh list</button>
+                <button data-need-conn disabled id="btnAllocId">Allocate ID</button>
+                <span class="status-pill" id="mediaIdPill">Media ID —</span>
+              </div>
+              <div class="media-list" id="mediaList">
+                <div class="empty">Connect and refresh to load media.</div>
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        </div>
+      </div>
+
+      <div id="tab-advanced" class="tab-panel" role="tabpanel" hidden>
+        <div class="grid adv-grid">
+          <section class="section">
+            <h2>OTA package</h2>
+            <p class="lead">
+              Same presets as <span class="mono">tools/send-ota.sh</span> — download CDN zip (CORS
+              open) or pick a local <span class="mono">.zip</span> / <span class="mono">.ufw</span>.
+            </p>
+            <div class="stack">
+              <div class="row">
+                <label class="field grow">
+                  Preset
+                  <select id="otaPreset">
+                    <option value="bj1">BJ-1 SuperBand (V32286)</option>
+                    <option value="dg01">DG01 SuperBand (V32399)</option>
+                  </select>
+                </label>
+                <button type="button" id="btnOtaPrepare">Prepare preset</button>
+                <button type="button" id="btnOtaPick">Local file…</button>
+                <input
+                  class="file-input"
+                  id="otaFileInput"
+                  type="file"
+                  accept=".ufw,.zip,.bin,application/zip"
+                />
+              </div>
+              <div class="row">
+                <label class="field">
+                  Catalog version
+                  <input id="otaCatVersion" type="text" placeholder="V32172" value="V32172" />
+                </label>
+                <label class="field">
+                  Name
+                  <input id="otaCatName" type="text" value="BJ-1" />
+                </label>
+                <button type="button" id="btnOtaProbeCatalog">Probe catalog</button>
+              </div>
+              <p class="lead" id="otaPackageMeta">No package loaded.</p>
+              <div class="progress" id="otaDlProgress" hidden><i id="otaDlBar"></i></div>
+            </div>
+          </section>
+
+          <section class="section">
+            <h2>GATT / AE00 probe</h2>
+            <p class="lead">
+              List services on the active badge or open a picker focused on JieLi OTA
+              <span class="mono">AE00</span>.
+            </p>
+            <div class="stack">
+              <div class="row">
+                <button data-need-conn disabled id="btnProbeGatt">Probe active GATT</button>
+                <button type="button" id="btnProbeOtaPicker">Picker → probe AE00</button>
+              </div>
+              <pre class="adv-out" id="gattProbeOut">Connect a badge, then probe.</pre>
+            </div>
+          </section>
+
+          <section class="section">
+            <h2>BLE OTA flash</h2>
+            <p class="lead">
+              JieLi RCSP over <span class="mono">AE01/AE02</span> (openwearota-compatible). Wrong
+              image can brick — match BJ-1 / DG01. AC707N is best-effort; device may require native
+              RCSP auth the app uses.
+            </p>
+            <div class="stack">
+              <label class="check"
+                ><input type="checkbox" id="otaConfirmRisk" /> I understand this can brick the
+                badge</label
+              >
+              <div class="row">
+                <button class="danger" data-need-conn disabled id="btnOtaFlash">
+                  Flash UFW to active
+                </button>
+                <button class="danger" type="button" id="btnOtaFlashPicker">
+                  Picker + flash
+                </button>
+              </div>
+              <div class="progress" id="otaFlashProgress" hidden><i id="otaFlashBar"></i></div>
+              <p class="lead" id="otaFlashMeta">Load a package first.</p>
+            </div>
+          </section>
+
+          <section class="section">
+            <h2>Protocol probes</h2>
+            <p class="lead">
+              FitPro / legacy helpers from the CLI path. Dial-info
+              <span class="mono">0x20</span> often drops BJ-1 — opt-in only.
+            </p>
+            <div class="stack">
+              <div class="row">
+                <button data-need-conn disabled id="btnAdvHandshake">Legacy 0x1A handshake</button>
+                <button data-need-conn disabled id="btnAdvPair">Send pair frame</button>
+                <button data-need-conn disabled id="btnAdvDialInfo" class="danger">
+                  Dial info 0x20
+                </button>
+              </div>
+              <p class="hint">
+                Handshake = D(10)/D(12)/D(28). Prefer this before dial31 push experiments.
+              </p>
+            </div>
+          </section>
+
+          <section class="section">
+            <h2>USB / forced update</h2>
+            <p class="lead">Offline JieLi downloader notes (chipkey <span class="mono">$B165</span>).</p>
+            <pre class="adv-out" id="usbHintOut"></pre>
+          </section>
+
+          <section class="section">
+            <h2>Security findings</h2>
+            <p class="lead">
+              From static FW/APK research —
+              <a
+                href="https://github.com/T-REX-XP/superband-web-client-rnd/blob/main/docs/protocol/security.md"
+                target="_blank"
+                rel="noopener noreferrer"
+                >docs/protocol/security.md</a
+              >.
+            </p>
+            <ul class="finding-list" id="securityFindings"></ul>
+          </section>
+        </div>
       </div>
 
       <section class="section log-panel">

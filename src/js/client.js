@@ -257,7 +257,7 @@ class BadgeSession {
    * Android zl.java after DeviceFunctionEvent: D(10), D(12), capability D(28).
    * Best-effort — ignore failures; do not query dial info (crashes BJ-1).
    */
-  async _fitProHandshake() {
+  async fitProHandshake() {
     if (!this.connected) return;
     const cmds = [
       [FitPro.LegacyCmd.PROBE_A, 'LEGACY_1A/10'],
@@ -274,6 +274,11 @@ class BadgeSession {
         break;
       }
     }
+  }
+
+  /** @deprecated use fitProHandshake */
+  async _fitProHandshake() {
+    return this.fitProHandshake();
   }
 
   async disconnect() {
@@ -841,6 +846,16 @@ export class SuperBandClient extends EventTarget {
 
   async refreshDialInfo(opts) {
     return this._requireActive().refreshDialInfo(opts);
+  }
+
+  async fitProHandshake() {
+    return this._requireActive().fitProHandshake();
+  }
+
+  /** Active session GATT server (for AE00 probe / OTA). */
+  getActiveGattServer() {
+    const server = this.active?.ble?.gattServer;
+    return server?.connected ? server : null;
   }
 
   async pair() {
