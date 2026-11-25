@@ -37,7 +37,7 @@ u32 featuresLen      | features UTF-8
 
 ## Web console
 
-The manager auto-requests Baji device info after connect **except** for GAP names that look like SuperBand FitPro badges (`BJ*`, `DG*`, …). Those skip Baji and dial-info probes (both can drop the link on BJ-1) and use [Dial upload](dial-upload.md). Read firmware revision from DIS `0x2A26` when Baji info is missing.
+The manager skips Baji device info on known FitPro GAP names and reads dial-info on BJ-1 and BG-series badges. Use [Dial upload](dial-upload.md) for the format mapping. The firmware revision comes from DIS `0x2A26` when Baji info is missing.
 
 ## Related
 

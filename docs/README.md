@@ -15,6 +15,8 @@ Documentation for the SuperBand electronic badge BLE stack from RnD investigatio
 | [Media management](protocol/media.md) | Module `0x02` — IDs, list, delete, preview |
 | [File transfer](protocol/file-transfer.md) | Module `0x01` — chunked upload, CRC32, verify |
 | [Dial upload (FitPro)](protocol/dial-upload.md) | Module `0x1F`/`0x20` — BJ-1 picture push |
+| [Legacy commands (FitPro)](protocol/legacy-commands.md) | Modules `0x12`/`0x15`/`0x1C` — settings, find, goals, device control |
+| [Live viewfinder](protocol/live-preview.md) | Product `0x27` — remote camera / realtime preview stream |
 | [Command reference](protocol/commands.md) | All modules, opcodes, types, error codes |
 | [Packet examples](protocol/examples.md) | Hex dumps of real frames |
 | [Firmware OTA](protocol/ota-firmware.md) | JieLi OTA check API, DG01 / BJ-1 / LJ733 zip URLs |
@@ -33,9 +35,9 @@ Documentation for the SuperBand electronic badge BLE stack from RnD investigatio
 ## Quick facts
 
 - **Product:** electronic badge (电子吧唧), device type `3`
-- **Data plane:** Baji (`0x25`) and/or FitPro dial (`0x1F`/`0x20`); start marker `0xCD`
+- **Data plane:** Baji (`0x25`) and/or FitPro dial (`0x1F`/`0x20`) and legacy MyWatch (`0x12`/`0x15`/`0x1C`); live preview product `0x27`; start marker `0xCD`
 - **Transport:** GATT UART `7E400001` / write `…002` / notify `…003`
 - **OTA:** JieLi `AE00` / `AE01` / `AE02` (app + Advanced tab + `tools/send-ota.sh`)
-- **Chunk size:** ~200 B (Baji) · FitPro dial ~498 B atomic CD frames (Android shortPkg capped to ATT) · **MTU target:** 512
-- **Manager UI:** `cd src && bun install && bun run dev` → http://localhost:8787 (**Manager** + **Advanced** tabs)
+- **Chunk size:** ~200 B (Baji / preview) · FitPro dial ~498 B atomic CD frames (Android shortPkg capped to ATT) · **MTU target:** 512
+- **Manager UI:** `cd src && bun install && bun run dev` → http://localhost:8787 (**Manager** + **Advanced** tabs, incl. live viewfinder + quick actions)
 - **GitHub Pages:** push `src/` to `main`/`master` (see `.github/workflows/pages.yml`)

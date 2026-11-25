@@ -18,31 +18,32 @@ Output: `docs/firmware-rewrite/captures/<name>_<utc>.json`
 
 Web path: Manager → **Advanced** → dial-info (opt-in). On success the UI downloads a JSON capture as well.
 
-## Known stock behavior
-
-- Auto dial-info on connect **drops GATT** on many BJ-1 units — manager skips it.
-- Manual probe may still disconnect; capture JSON records `gattStillConnected` and raw frames.
+The capture tool reassembles split notifications before decoding dial-info. The manager also reads this profile on BJ-1 and BG-series connections.
 
 ## Capture log (this environment)
 
 | When (UTC) | Result |
 |------------|--------|
 | 2026-08-11 | Advertising seen: GAP `BJ-1`, addr `B5:2F:EA:08:07:7A`, mfg `0xAA01`, RSSI ~−59. GATT **connect timed out** — see `captures/BJ-1_20260811T185208Z.json`. |
-| — | Full dial-info PDU **not yet received** on this host; use inferred baseline until a connect succeeds. |
+| 2026-11-25 | BJ-1 V32286 replied in two 20-byte notifications and GATT remained connected. |
 
-### Working defaults (until a successful 0x20 response)
+### Measured V32286 profile
 
-Aligned with successful RGB565 pushes and `dg01-ble` / non-alg-4 FitPro path:
+| Field | Value |
+|-------|-------|
+| Dimensions | 360 × 360 |
+| Device models | K66 / LJ733 |
+| Algorithm | 3 |
+| Theme version | 9 |
+| Logical short-packet size | 25,000 bytes |
 
-| Field | Value | Confidence |
-|-------|------:|------------|
-| width × height | 360 × 360 | High (product + client default) |
-| algorithm | `0` (not `4`) | High (JPEG type 2 → black screen; RGB565 type 0 works) |
-| dialType | `0` | High |
-| shortPkgLength | `5000` (Android default when unknown) | Medium |
-| encode | LE RGB565 | High |
+The prior inferred profile in `captures/BJ-1_baseline_inferred.json` is retained as historical context.
 
-See `captures/BJ-1_baseline_inferred.json` and re-run the tool when the badge accepts a connection.
+Raw dial-info payload:
+
+```text
+010001680168034b3636054c4a3733330703fffe01054a5130303100000961a8
+```
 
 ## Related
 

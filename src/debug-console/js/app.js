@@ -26,6 +26,11 @@ import {
   parseMediaIdResponse,
   parseAck,
   parseNack,
+  buildSyncTime,
+  buildFindDevice,
+  buildDeviceReset,
+  buildPreviewStart,
+  buildPreviewStop,
 } from './protocol.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -306,6 +311,32 @@ function bindUi() {
   );
   $('#btnStatus').addEventListener('click', () =>
     sendBuilt(buildStatusQuery(), 'STATUS').catch((e) =>
+      logLine({ msg: e.message, level: 'err' }),
+    ),
+  );
+  $('#btnSyncTime').addEventListener('click', () =>
+    sendBuilt(buildSyncTime(new Date()), 'SYNC_TIME').catch((e) =>
+      logLine({ msg: e.message, level: 'err' }),
+    ),
+  );
+  $('#btnFind').addEventListener('click', () =>
+    sendBuilt(buildFindDevice(true), 'FIND_DEVICE_ON').catch((e) =>
+      logLine({ msg: e.message, level: 'err' }),
+    ),
+  );
+  $('#btnDeviceReset').addEventListener('click', () => {
+    if (!confirm('Factory reset the badge?')) return;
+    sendBuilt(buildDeviceReset(), 'DEVICE_RESET').catch((e) =>
+      logLine({ msg: e.message, level: 'err' }),
+    );
+  });
+  $('#btnPreviewStart').addEventListener('click', () =>
+    sendBuilt(buildPreviewStart(), 'PREVIEW_START').catch((e) =>
+      logLine({ msg: e.message, level: 'err' }),
+    ),
+  );
+  $('#btnPreviewStop').addEventListener('click', () =>
+    sendBuilt(buildPreviewStop(), 'PREVIEW_STOP').catch((e) =>
       logLine({ msg: e.message, level: 'err' }),
     ),
   );

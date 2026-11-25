@@ -307,7 +307,6 @@ export function bindAdvanced(ctx) {
       .catch((e) => toast(e.message, 'err')),
   );
   $('#btnAdvDialInfo').addEventListener('click', () => {
-    if (!confirm('Dial-info (0x20) often disconnects BJ-1. Continue?')) return;
     client
       .refreshDialInfo({ timeoutMs: 6000 })
       .then((info) => {

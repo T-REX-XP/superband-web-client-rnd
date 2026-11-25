@@ -441,12 +441,16 @@ export function describeJpeg(bytes) {
   if (!bytes || bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) {
     return { ok: false, reason: 'not JPEG' };
   }
+  if (bytes[bytes.length - 2] !== 0xff || bytes[bytes.length - 1] !== 0xd9) {
+    return { ok: false, reason: 'missing JPEG end marker' };
+  }
   let i = 2;
   let jfif = false;
   let progressive = false;
   let samp = null;
   let width = 0;
   let height = 0;
+  let hasScan = false;
   while (i + 3 < bytes.length) {
     if (bytes[i] !== 0xff) {
       i++;
@@ -454,12 +458,18 @@ export function describeJpeg(bytes) {
     }
     const m = bytes[i + 1];
     if (m === 0xd9) break;
-    if (m === 0xda) break;
     if (m === 0x00 || m === 0xff) {
       i++;
       continue;
     }
     const len = (bytes[i + 2] << 8) | bytes[i + 3];
+    if (len < 2 || i + 2 + len > bytes.length - 2) {
+      return { ok: false, reason: 'invalid JPEG segment length' };
+    }
+    if (m === 0xda) {
+      hasScan = i + 2 + len < bytes.length - 2;
+      break;
+    }
     if (m === 0xe0 && len >= 7) {
       const tag = String.fromCharCode(bytes[i + 4], bytes[i + 5], bytes[i + 6], bytes[i + 7]);
       if (tag.startsWith('JFIF')) jfif = true;
@@ -478,7 +488,7 @@ export function describeJpeg(bytes) {
   const is444 = samp && samp.y === 0x11 && samp.cb === 0x11 && samp.cr === 0x11;
   const mcuOk = is444 ? width % 8 === 0 && height % 8 === 0 : width % 16 === 0 && height % 16 === 0;
   return {
-    ok: jfif && !progressive && is444 && mcuOk,
+    ok: hasScan && jfif && !progressive && is444 && mcuOk && width > 0 && height > 0,
     jfif,
     progressive,
     is444: !!is444,

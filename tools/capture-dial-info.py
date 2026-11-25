@@ -109,7 +109,7 @@ def parse_dial_info(payload: bytes) -> dict | None:
 def looks_like_badge(name: str | None) -> bool:
     if not name:
         return False
-    return bool(re.search(r"^(BJ|DG)|BadgeOK|SuperBand|_V\d", name, re.I))
+    return bool(re.search(r"^(BJ|DG|BG)|BadgeOK|SuperBand|_V\d", name, re.I))
 
 
 async def discover_badge(timeout: float) -> tuple[str, str]:
@@ -146,6 +146,7 @@ async def capture(address: str | None, name_hint: str | None, timeout: float, sk
         print(f"found {name_hint!r} @ {address}", file=sys.stderr)
 
     frames: list[dict] = []
+    pending = bytearray()
     dial_info = None
     disconnected = asyncio.Event()
 
@@ -153,18 +154,33 @@ async def capture(address: str | None, name_hint: str | None, timeout: float, sk
         nonlocal dial_info
         b = bytes(data)
         row = {"t": time.time(), "hex": b.hex(), "len": len(b)}
-        if len(b) >= 8 and b[0] == 0xCD:
-            mod = b[3]
-            cmd = b[5]
-            plen = get_u16be(b, 6)
-            payload = b[8 : 8 + plen]
+        frames.append(row)
+        pending.extend(b)
+        while pending:
+            start = pending.find(0xCD)
+            if start < 0:
+                pending.clear()
+                break
+            del pending[:start]
+            if len(pending) < 3:
+                break
+            length = 3 + get_u16be(pending, 1)
+            if len(pending) < length:
+                break
+            frame = bytes(pending[:length])
+            del pending[:length]
+            if len(frame) < 8:
+                continue
+            mod, cmd = frame[3], frame[5]
+            payload = frame[8:]
+            if len(payload) != get_u16be(frame, 6):
+                continue
             row.update({"module": mod, "cmd": cmd, "payloadHex": payload.hex()})
             if mod == 0x20 and cmd == 2:
                 parsed = parse_dial_info(payload)
                 if parsed:
                     dial_info = parsed
                     row["parsed"] = parsed
-        frames.append(row)
 
     async with BleakClient(address, timeout=timeout) as client:
         meta = {
@@ -215,8 +231,7 @@ async def capture(address: str | None, name_hint: str | None, timeout: float, sk
         meta["frames"] = frames
         meta["capturedAt"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
         meta["note"] = (
-            "Stock BJ-1 often disconnects on 0x20 dial-info; "
-            "absence of dialInfo with gattStillConnected=false is expected."
+            "Dial-info replies can span multiple GATT notifications."
         )
         return meta
 

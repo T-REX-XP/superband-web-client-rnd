@@ -3,8 +3,9 @@ import { createHash } from 'node:crypto';
 import { test } from 'node:test';
 import { SuperBandBle } from './ble.js';
 import { SuperBandClient } from './client.js';
-import { buildFitProFrame, fitproByteSum } from './fitpro.js';
+import { buildFitProFrame, decodeDialStatus, fitproByteSum, parseDialRemainSpace } from './fitpro.js';
 import { encodeBr35Etc2, encodePackedRgb565, inspectJieliResource } from './jieli-image.js';
+import { describeJpeg, encodeBaselineJpeg444 } from './jpeg444.js';
 import { PacketAssembler, parsePacket } from './protocol.js';
 
 const solid = Uint8Array.from({ length: 360 * 360 * 4 }, (_, i) => [11, 83, 240, 255][i % 4]);
@@ -38,8 +39,25 @@ test('BR35 mode-6 resource declares an ETC2 RGBA8 block grid', () => {
   assert.equal(inspectJieliResource(bytes, 3), null);
 });
 
+test('algorithm 4 JPEG includes baseline dimensions and a complete scan', () => {
+  const data = new Uint8Array(8 * 16 * 4).fill(255);
+  const jpeg = encodeBaselineJpeg444({ data, width: 8, height: 16 }, { quality: 50 });
+  assert.equal(describeJpeg(jpeg).ok, true);
+  assert.equal(describeJpeg(jpeg).width, 8);
+  assert.equal(describeJpeg(jpeg).height, 16);
+  assert.equal(describeJpeg(jpeg.subarray(0, -2)).ok, false);
+});
+
+test('FitPro free space and terminal storage statuses preserve the reported values', () => {
+  assert.equal(parseDialRemainSpace(Buffer.from('0000000000152000', 'hex')), 1384448);
+  assert.deepEqual(decodeDialStatus(100786348), { kind: 'memory', freeBytes: 786348 });
+  assert.deepEqual(decodeDialStatus(100000000), { kind: 'memory', freeBytes: 0 });
+  assert.deepEqual(decodeDialStatus(1001), { kind: 'ack', seq: 1 });
+});
+
 test('BJ-1 sends a complete packed resource and accepts early notifications', async (t) => {
   const frames = [];
+  let rejectStart = false;
   t.mock.method(SuperBandBle.prototype, 'connect', async function () {
     this.device = { id: 'test-bj1', name: 'BJ-1', gatt: { connected: true } };
     this.writeChar = {};
@@ -64,7 +82,8 @@ test('BJ-1 sends a complete packed resource and accepts early notifications', as
     const payload = Buffer.from(bytes.subarray(8));
     const command = bytes[5];
     frames.push({ command, payload });
-    const status = command === 2 ? 1000 : command === 3 ? 2 : 1000 + payload.readUInt16BE();
+    const status = command === 2 ? (rejectStart ? 4 : 1000)
+      : command === 3 ? 2 : 1000 + payload.readUInt16BE();
     const reply = Buffer.alloc(4);
     reply.writeUInt32BE(status);
     this.onPacket(parsePacket(buildFitProFrame(0x20, 1, reply)));
@@ -101,4 +120,9 @@ test('BJ-1 sends a complete packed resource and accepts early notifications', as
   assert.deepEqual(blob.subarray(4), Buffer.from(image));
   assert.equal(finish.command, 3);
   assert.equal(finish.payload.readUInt32BE(), fitproByteSum(blob));
+
+  frames.length = 0;
+  rejectStart = true;
+  await assert.rejects(client.transferFile(image), /charging/);
+  assert.deepEqual(frames.map(({ command }) => command), [2]);
 });

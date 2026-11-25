@@ -71,6 +71,22 @@ JieLi positions **AC707N** as a color-screen wearable SoC (watch / badge class):
 
 Panel glass size (~1.85″ 360×360) comes from product listings / field notes, **not** a cleartext `360x360` string in `app.bin`. Prefer dial dimensions from the live device (Baji dial-info / DIS) when pushing images.
 
+## Variant: LJ733_MB_V1.5 / `BG02` — JieLi AC7076, 240×240
+
+The packages analysed above are the **DG01 / BJ-1** cuts (UFW chipname `AC707N`). A later LJ733 variant carries a different CPU and a smaller panel:
+
+| | DG01 / BJ-1 (analysed) | `BG02` (LJ733_MB_V1.5) |
+|--|------------------------|------------------------|
+| CPU | JieLi **AC707N** (BR35 family) | JieLi **AC7076** ("7076 low power") |
+| Panel | reported ~360×360 | **1.5″ 240×240** |
+| DIS | `LJ733_MB_V1.1` family | `hw=LJ733_MB_V1.5`, `fw=V35922` |
+| Dial protocol | FitPro `0x1F` | FitPro `0x1F` (**same**) |
+| Viewfinder `0x27` | untested | **verified 240×240** |
+
+`AC7076` / `AC7076A` is the same e-badge class as `samascience/ebadge` (BW03) and the E01 units, which use the **WatchTheme3** dial protocol and accept **baseline JFIF or MJPEG-in-AVI** — matching the video dial container.
+
+Not analysed here: no `BG02` UFW has been pulled (the vendor catalogue's LJ733 rows target the `AC707N` cuts). Prefer live DIS / dial-info dimensions over listings.
+
 ## DG01 vs BJ-1
 
 | | DG01 SuperBand zip | BJ-1 SuperBand zip |

@@ -50,7 +50,7 @@ export const FitPro = {
 export function looksLikeFitProBadge(name) {
   if (!name) return false;
   const n = String(name);
-  return /^(BJ|DG)/i.test(n) || /BadgeOK|SuperBand|_V\d/i.test(n);
+  return /^(BJ|DG|BG)/i.test(n) || /BadgeOK|SuperBand|_V\d/i.test(n);
 }
 
 function putU16BE(out, offset, value) {
@@ -168,9 +168,67 @@ export function buildDialStatusRequest() {
   return buildFitProFrame(FitPro.DIAL_INFO_MODULE, FitPro.InfoCmd.STATUS);
 }
 
+/** Free-space query: module `0x20` / key `4` (SDK `getDialWatchRemainSpace`). */
+export function buildDialRemainSpaceRequest() {
+  return buildFitProFrame(FitPro.DIAL_INFO_MODULE, 4);
+}
+
+/**
+ * Dial free-space response payload. SDK parses it as a long (`bytesToLong`),
+ * so expect 8 bytes big-endian; fall back to u32BE on short payloads.
+ * @param {Uint8Array} payload
+ * @returns {number|null}
+ */
+export function parseDialRemainSpace(payload) {
+  if (!payload || !payload.length) return null;
+  if (payload.length >= 8) {
+    let v = 0n;
+    for (let i = 0; i < 8; i++) v = (v << 8n) | BigInt(payload[i] & 0xff);
+    const n = Number(v);
+    return Number.isSafeInteger(n) ? n : null;
+  }
+  if (payload.length >= 4) return getU32BE(payload, 0);
+  return null;
+}
+
 /** Short legacy probe: CD 00 05 1A 01 {cmd} 00 00 */
 export function buildLegacyProbe(cmd) {
   return buildFitProFrame(FitPro.LEGACY_MODULE, cmd);
+}
+
+/**
+ * Legacy `0x1A` key 10 response payload = the badge's own 6-byte BD_ADDR.
+ * This is the *identity* address shown on the badge screen (and its QR code);
+ * the OS/Web Bluetooth may expose a different random (resolvable) advertising
+ * address for the same device.
+ * @param {Uint8Array} payload
+ * @returns {string|null} e.g. "AA:BB:CC:DD:EE:FF"
+ */
+export function parseLegacyMac(payload) {
+  if (payload?.length !== 6) return null;
+  return [...payload.slice(0, 6)]
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join(':')
+    .toUpperCase();
+}
+
+/**
+ * Legacy `0x1A` key 12 response payload = `u8 len ‖ ASCII name` (e.g. "BG02").
+ * @param {Uint8Array} payload
+ * @returns {string|null}
+ */
+export function parseLegacyName(payload) {
+  if (!payload || payload.length < 2) return null;
+  const len = payload[0];
+  if (len !== payload.length - 1) return null;
+  const end = payload.length;
+  let s = '';
+  for (let i = 1; i < end; i++) {
+    const c = payload[i];
+    if (c < 0x20 || c > 0x7e) return null;
+    s += String.fromCharCode(c);
+  }
+  return s || null;
 }
 
 export function buildDialStart(startPayload) {
@@ -275,6 +333,26 @@ export function dialUpgradeStatusMessage(code) {
 
 export function formatDialUpgradeError(code) {
   return `Dial upgrade error status=${code} (${dialUpgradeStatusMessage(code)})`;
+}
+
+/**
+ * Interpret a raw dial-status code the way SDK `WatchTheme3Tools.response()` does.
+ * Bands: `{1000,1e8}` chunk ACKs, `{1e8,2e8}` storage (`<1><0><freeBytes>`),
+ * then small codes `2`=success / `1..9`=errors.
+ * @returns {{kind:'ack',seq:number}|{kind:'success'}|{kind:'error',code:number}|{kind:'memory',freeBytes:number|null}|{kind:'other',code:number}}
+ */
+export function decodeDialStatus(code) {
+  if (code == null) return { kind: 'other', code: null };
+  if (code >= 1000 && code < 100000000) return { kind: 'ack', seq: code - 1000 };
+  if (code >= 100000000 && code < 200000000) {
+    const s = String(code);
+    // dy "1 0 <freeBytes>" → memory-less; else a different 1e8-band message.
+    if (s[1] === '0') return { kind: 'memory', freeBytes: Number(s.slice(2)) };
+    return { kind: 'other', code };
+  }
+  if (code === 2) return { kind: 'success' };
+  if (code >= 1 && code <= 9) return { kind: 'error', code };
+  return { kind: 'other', code };
 }
 
 export function isFitProDialInfoPacket(pkt) {

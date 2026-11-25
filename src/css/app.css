@@ -849,3 +849,24 @@ input[type='number'] {
 [hidden] {
   display: none !important;
 }
+
+/* Live viewfinder (product 0x27) */
+.live-stage {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0.6rem 0;
+}
+
+.live-canvas {
+  width: min(260px, 70vw);
+  height: auto;
+  border-radius: 16px;
+  background: #000;
+  border: 1px solid var(--line, #2a2a33);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 35%);
+}
+
+.live-stage video {
+  display: none;
+}

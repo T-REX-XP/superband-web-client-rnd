@@ -40,6 +40,8 @@ See [GATT](gatt.md), [Framing](framing.md).
 
 ### Image payload
 
+The table below describes the current open simulator fixtures. A stock BJ-1 running V32286 reports algorithm 3, which selects the BR35 resource family in the Android app. See [Dial upload](dial-upload.md) for the measured profile.
+
 | Field | Stage‑1 default |
 |-------|-----------------|
 | Dimensions | **360×360** (until live dial-info says otherwise) |

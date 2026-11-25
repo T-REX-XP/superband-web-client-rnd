@@ -10,16 +10,25 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 ### Planned
 
 - Broader media list parsing robustness across firmware variants
-- Video / GIF push helpers in the manager UI
+- Confirm AVI (video) dial playback on hardware; tune flags/container if needed
 
 ### Fixed
 
-- Dial push black screen on BJ-1: default **RGB565 + dial type 0** (AC707N / FitPro non-JPEG path). Prior JPEG type-2 transfers ACK’d but the panel stayed black
+- BJ-1 picture pushes use the reported dial profile. Firmware V32286 reports algorithm 3 and receives a packed BR35 ETC2 resource under dial type 0.
 - Dial JPEG path (algorithm 4): encode **baseline JFIF 4:4:4** (APK TurboJPEG / JpegRulesChecker); browser `toBlob` 4:2:0 failed MCU on 360×360
 - Dial upgrade status codes mapped to readable errors (e.g. status `4` = charging)
 
 ### Added
 
+- **Live viewfinder (remote camera)** — stream the host camera to the badge over the product **`0x27`** realtime-preview path: start/stop, device start-response parsing, per-frame ATT chunking with configurable size, device end-command handling, and a camera-free **test-pattern** mode (`src/js/preview.js`, `src/js/extras.js`, `client.previewStart/SendFrame/Stop`)
+- **Device-initiated viewfinder** — start manually or opt into auto-start. The contributor verified BG02 (LJ733_MB_V1.5, V35922, 240×240) with 200 B and 512 B chunks. Viewfinder settings persist locally.
+- FitPro detection also matches `BG*` GAP names (e.g. `BG02`), skipping the Baji probe timeout
+- **Device MAC (identity address)** — the legacy `0x1A`/`0x0A` response is parsed as the badge's own 6-byte BD_ADDR (the address shown on its screen / QR code, e.g. `AA:BB:CC:DD:EE:FF`) and shown as **BLE MAC** in the identity grid; `0x1A`/`0x0C` is parsed as the name fallback. This differs from the random advertising address the OS may expose
+- **Video / GIF push (FitPro dial)** — decode a GIF/WebP/APNG (`ImageDecoder`) or video (`<video>` + canvas) in the browser into frame bitmaps, build an **MJPG AVI** (`src/js/avi.js`) auto-tuned to a size budget (JPEG quality then frame rate), and upload over the existing dial31 path with `dialType 1` (`fileType AVI`, same dial id `5538`). New "Push video / GIF" UI (size / FPS / duration / size-budget). Containers/constants recovered from the SuperBand app (`WatchTheme3Body.setFileType(1)`, `VideoTool`)
+- **Dial storage** — query free space with `0x20/4`, use it to constrain the AVI budget, and show storage refusals immediately.
+- **Quick actions** — sync time, find, set a step goal, set the user profile, toggle realtime steps, control the remote photo page, find the phone, enter OTA mode, shut down, or factory reset.
+- Debug console: product `0x27` preview + legacy settings buttons and builders
+- Docs: [`protocol/live-preview.md`](docs/protocol/live-preview.md) and [`protocol/legacy-commands.md`](docs/protocol/legacy-commands.md)
 - Clean-room firmware track: `docs/firmware-rewrite/`, `docs/protocol/firmware-contract.md`, portable dial31 scaffold `firmware/ac707n-open/`, `tools/map-fitpro-dispatch.py`, `tools/capture-dial-info.py`
 - Advanced dial-info probe downloads a JSON capture on success
 - Firmware OTA investigation notes (`docs/protocol/ota-firmware.md`)

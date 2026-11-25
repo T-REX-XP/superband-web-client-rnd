@@ -38,15 +38,15 @@
           </nav>
         </div>
         <p>
-          Manage your electronic badge over Bluetooth — push faces, inspect storage, and run
-          advanced OTA / protocol tools.
+          Manage your electronic badge over Bluetooth — push faces, mirror your camera to the badge
+          (live viewfinder), send quick device commands, inspect storage, and run advanced OTA /
+          protocol tools.
         </p>
         <div class="hero-cta">
           <span class="status-pill" id="connPill" data-state="">Disconnected</span>
           <span class="status-pill" id="blePill">Checking Bluetooth…</span>
           <button class="primary" id="btnConnect">Connect badge</button>
           <button class="ghost" id="btnConnectAny">Other device</button>
-          <button class="ghost" id="btnAddBadge" hidden>Add another</button>
           <button class="danger" id="btnDisconnect" hidden>Disconnect</button>
           <button class="danger" id="btnDisconnectAll" hidden>Disconnect all</button>
         </div>
@@ -89,12 +89,11 @@
       </div>
 
       <div id="tab-manager" class="tab-panel active" role="tabpanel">
-        <div class="grid">
+        <div class="grid" data-badge-only hidden>
           <section class="section">
             <h2>Device</h2>
-            <p class="lead">
-              At-a-glance identity from GATT Device Information + battery; storage from Baji when
-              the badge answers.
+            <p class="hint" id="unknownBadge" role="status" hidden>
+              Badge protocol unknown. Use Read dial info in Advanced if this is a FitPro badge.
             </p>
             <div class="stack">
               <div class="stats" id="deviceStats">
@@ -118,6 +117,9 @@
                   ><span class="v" data-field="manufacturer">—</span>
                 </div>
                 <div class="stat">
+                  <span class="k">BLE MAC</span><span class="v" data-field="mac">—</span>
+                </div>
+                <div class="stat">
                   <span class="k">Battery</span><span class="v" data-field="battery">—</span>
                 </div>
                 <div class="stat">
@@ -137,10 +139,10 @@
             </div>
           </section>
 
-          <section class="section">
+          <section class="section" data-known-badge hidden>
             <h2>Push image</h2>
             <p class="lead">
-              Crop to dial size (default 360×360), encode JPEG, upload via Baji or FitPro dial31.
+              Crop to the dial size and encode for the connected badge.
             </p>
             <div class="stack">
               <ul class="checklist" id="pushChecklist">
@@ -169,7 +171,7 @@
                   Height
                   <input id="dialH" type="number" value="360" min="16" max="1024" />
                 </label>
-                <label class="field">
+                <label class="field" data-baji-only hidden>
                   Role
                   <select id="functionType">
                     <option value="1" selected>Background</option>
@@ -181,7 +183,7 @@
               <label class="check"
                 ><input type="checkbox" id="roundMask" checked /> Round screen mask</label
               >
-              <label class="check"
+              <label class="check" data-baji-only hidden
                 ><input type="checkbox" id="allocMedia" checked /> Allocate media ID</label
               >
               <p class="lead" id="imageMeta">No image selected.</p>
@@ -189,7 +191,176 @@
             </div>
           </section>
 
-          <section class="section" style="grid-column: 1 / -1">
+          <section class="section" style="grid-column: 1 / -1" data-fitpro-only hidden>
+            <h2>Push video / GIF</h2>
+            <p class="lead">Choose a short clip or animation. The client fits it to the badge’s free dial space when available.</p>
+            <div class="stack">
+              <div class="dial-stage">
+                <div class="dial round" id="aviDial">
+                  <div class="placeholder" id="aviPlaceholder">
+                    Choose a video or GIF<br />to preview
+                  </div>
+                  <img id="aviPreview" alt="" hidden />
+                </div>
+                <div class="row">
+                  <input
+                    class="file-input"
+                    id="videoInput"
+                    type="file"
+                    accept="video/*,image/gif,image/webp,image/apng,.gif,.webp,.apng,.mp4,.mov,.webm,.avi,.mkv"
+                  />
+                  <button type="button" id="btnPickVideo">Choose video / GIF</button>
+                  <button data-need-conn disabled id="btnVideoFreeSpace">
+                    Query free space
+                  </button>
+                  <button class="primary" data-need-conn disabled id="btnPushVideo">
+                    Push video
+                  </button>
+                </div>
+              </div>
+              <div class="row">
+                <label class="field">
+                  Width
+                  <input id="videoW" type="number" value="240" min="16" max="1024" />
+                </label>
+                <label class="field">
+                  Height
+                  <input id="videoH" type="number" value="240" min="16" max="1024" />
+                </label>
+                <label class="field">
+                  FPS
+                  <input id="videoFps" type="number" value="12" min="1" max="30" />
+                </label>
+                <label class="field">
+                  Max seconds
+                  <input id="videoSeconds" type="number" value="5" min="0.5" max="5" step="0.5" />
+                </label>
+                <label class="field">
+                  Size budget (KB)
+                  <input id="videoMaxKb" type="number" value="700" min="8" max="8192" step="8" />
+                </label>
+              </div>
+              <label class="check"
+                ><input type="checkbox" id="videoRound" checked /> Round screen mask</label
+              >
+              <p class="lead" id="videoMeta">No video selected.</p>
+              <div class="progress" id="aviProgress" hidden><i id="aviBar"></i></div>
+            </div>
+          </section>
+
+          <section class="section" style="grid-column: 1 / -1" data-fitpro-only hidden>
+            <h2>Live viewfinder</h2>
+            <p class="lead">
+              Stream your camera to the badge display &mdash; the <span class="mono">0x27</span>
+              realtime-preview (remote viewfinder) product. The badge can also open your photo page and
+              take remote pictures (see Quick actions).
+            </p>
+            <div class="stack">
+              <div class="live-stage">
+                <video id="liveVideo" playsinline muted hidden></video>
+                <canvas id="liveCanvas" width="240" height="296" class="live-canvas"></canvas>
+              </div>
+              <div class="row">
+                <button data-need-conn disabled id="btnLiveCamera">Enable camera</button>
+                <button class="primary" data-need-conn disabled id="btnLiveStart">Start stream</button>
+                <button class="danger" id="btnLiveStop" disabled>Stop</button>
+                <span class="status-pill" id="liveMeta" data-state="">Idle</span>
+              </div>
+              <div class="row">
+                <label class="field">
+                  FPS
+                  <input id="liveFps" type="number" value="10" min="1" max="30" />
+                </label>
+                <label class="field">
+                  JPEG quality
+                  <input id="liveQuality" type="number" value="0.7" min="0.1" max="0.95" step="0.05" />
+                </label>
+                <label class="field">
+                  Chunk bytes
+                  <input id="liveChunk" type="number" value="200" min="20" max="512" />
+                </label>
+                <label class="check"
+                  ><input type="checkbox" id="liveTestPattern" /> Test pattern (no camera)</label
+                >
+                <label class="check"
+                  ><input type="checkbox" id="liveAutoStart" /> Auto-start when the badge
+                  requests it</label
+                >
+              </div>
+              <p class="hint" id="liveStats">frames=0 avg=0.0fps</p>
+              <p class="hint">
+                Stop the phone app first — it holds the only LE link. Some firmware negotiates a
+                smaller ATT MTU: if frames stall, lower <span class="mono">Chunk bytes</span>. Test
+                pattern is a camera-free wire check.
+              </p>
+            </div>
+          </section>
+
+          <section class="section" style="grid-column: 1 / -1" data-known-badge hidden>
+            <h2>Quick actions</h2>
+            <p class="lead">
+              Legacy MyWatch settings / device-control frames (modules
+              <span class="mono">0x12</span> · <span class="mono">0x15</span> ·
+              <span class="mono">0x1C</span>).
+            </p>
+            <div class="stack">
+              <div class="row">
+                <button data-need-conn disabled data-qa="syncTime">Sync time</button>
+                <button data-need-conn disabled data-qa="findOn">Find ON</button>
+                <button data-need-conn disabled data-qa="findOff">Find OFF</button>
+                <button data-need-conn disabled data-qa="realtimeStepOn">Realtime step ON</button>
+                <button data-need-conn disabled data-qa="realtimeStepOff">Realtime step OFF</button>
+              </div>
+              <div class="row">
+                <label class="field">
+                  Step goal
+                  <input id="qaGoalSteps" type="number" value="10000" min="0" max="100000" />
+                </label>
+                <button data-need-conn disabled data-qa="setGoal">Set goal</button>
+              </div>
+              <div class="row">
+                <label class="field">
+                  Sex
+                  <select id="qaSex">
+                    <option value="0">Male</option>
+                    <option value="1">Female</option>
+                  </select>
+                </label>
+                <label class="field">
+                  Age
+                  <input id="qaAge" type="number" value="30" min="1" max="120" />
+                </label>
+                <label class="field">
+                  Height cm
+                  <input id="qaHeight" type="number" value="170" min="50" max="250" />
+                </label>
+                <label class="field">
+                  Weight kg
+                  <input id="qaWeight" type="number" value="70" min="20" max="300" />
+                </label>
+                <button data-need-conn disabled data-qa="setUserInfo">Set profile</button>
+              </div>
+              <div class="row">
+                <button data-need-conn disabled data-qa="takePhotoOn">Photo page ON</button>
+                <button data-need-conn disabled data-qa="takePhotoOff">Photo page OFF</button>
+                <button data-need-conn disabled data-dc="openCamera">Open badge camera</button>
+                <button data-need-conn disabled data-dc="takePhoto">Remote shutter</button>
+              </div>
+              <div class="row">
+                <button data-need-conn disabled data-dc="findPhone">Find phone</button>
+                <button data-need-conn disabled data-dc="stopFindPhone">Stop find phone</button>
+                <button data-need-conn disabled data-dc="hangUp">Hang up</button>
+                <button data-need-conn disabled data-dc="answerPhone">Answer call</button>
+              </div>
+              <div class="row">
+                <button class="ghost" data-need-conn disabled data-qa="otaMode">Enter OTA mode</button>
+                <button class="danger" data-need-conn disabled data-qa="shutdown">Shutdown</button>
+                <button class="danger" data-need-conn disabled data-qa="reset">Factory reset</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="section" style="grid-column: 1 / -1" data-baji-only hidden>
             <h2>Media library</h2>
             <p class="lead">List and delete media IDs (Baji badges only).</p>
             <div class="stack">
@@ -288,18 +459,17 @@
             </div>
           </section>
 
-          <section class="section">
+          <section class="section" data-badge-only hidden>
             <h2>Protocol probes</h2>
             <p class="lead">
-              FitPro / legacy helpers from the CLI path. Dial-info
-              <span class="mono">0x20</span> often drops BJ-1 — opt-in only.
+              Read the badge's dial dimensions and image format, or run legacy pairing probes.
             </p>
             <div class="stack">
               <div class="row">
                 <button data-need-conn disabled id="btnAdvHandshake">Legacy 0x1A handshake</button>
                 <button data-need-conn disabled id="btnAdvPair">Send pair frame</button>
-                <button data-need-conn disabled id="btnAdvDialInfo" class="danger">
-                  Dial info 0x20
+                <button data-need-conn disabled id="btnAdvDialInfo">
+                  Read dial info
                 </button>
               </div>
               <p class="hint">

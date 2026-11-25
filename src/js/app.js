@@ -1,7 +1,14 @@
 import { SuperBandClient, FileType, FunctionType } from './client.js';
 import { prepareFileForBadge, formatBytes, DEFAULT_DIAL } from './image.js';
+import {
+  extractFramesForBadge,
+  fitAvi,
+  isSupportedVideoFile,
+  WATCH_VIDEO,
+} from './video.js';
 import { REPO_URL } from './protocol.js';
 import { bindAdvanced } from './advanced.js';
+import { bindExtras } from './extras.js';
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
@@ -9,6 +16,7 @@ const $$ = (s) => [...document.querySelectorAll(s)];
 const client = new SuperBandClient();
 let prepared = null;
 let transferring = false;
+let videoPrepared = null;
 
 function setPill(el, text, state = '') {
   el.textContent = text;
@@ -22,13 +30,13 @@ function syncConnectionChrome() {
   $$('[data-need-conn]').forEach((b) => {
     b.disabled = !on;
   });
+  $$('[data-badge-only]').forEach((section) => { section.hidden = !on; });
 
   // Always allow adding another device while Web Bluetooth works
   $('#btnConnect').hidden = false;
   $('#btnConnectAny').hidden = false;
   $('#btnConnect').textContent = n ? 'Add badge' : 'Connect badge';
   $('#btnConnectAny').textContent = n ? 'Add other' : 'Other device';
-  $('#btnAddBadge').hidden = n === 0;
   $('#btnDisconnect').hidden = n === 0;
   $('#btnDisconnectAll').hidden = n < 2;
   $('#btnPushAll').hidden = n < 2;
@@ -139,6 +147,12 @@ function dash(v) {
 function renderSnapshot(snap) {
   const s = snap || client.getSnapshot();
   const battery = s.battery == null ? '—' : `${s.battery}%`;
+  const isBaji = s.connected && s.protocolMode === 'baji';
+  const isFitPro = s.connected && s.protocolMode === 'fitpro';
+  $$('[data-baji-only]').forEach((element) => { element.hidden = !isBaji; });
+  $$('[data-fitpro-only]').forEach((element) => { element.hidden = !isFitPro; });
+  $$('[data-known-badge]').forEach((element) => { element.hidden = !(isBaji || isFitPro); });
+  $('#unknownBadge').hidden = !s.connected || isBaji || isFitPro;
 
   const fields = {
     name: dash(s.name),
@@ -147,9 +161,10 @@ function renderSnapshot(snap) {
     hardware: dash(s.hardware),
     software: dash(s.software),
     manufacturer: dash(s.manufacturer),
+    mac: dash(s.mac),
     battery,
     protocol: dash(s.protocol),
-    free: fmtBig(s.freeStorage),
+    free: fmtBig(s.freeStorage ?? s.dialFreeBytes),
     cap: fmtBig(s.storageCapacity),
   };
 
@@ -179,18 +194,24 @@ function renderSnapshot(snap) {
       const h = $('#dialH');
       if (w && Number(w.value) !== s.dialWidth) w.value = String(s.dialWidth);
       if (h && Number(h.value) !== s.dialHeight) h.value = String(s.dialHeight);
+      $('#dialW').readOnly = true;
+      $('#dialH').readOnly = true;
     }
   } else if (s.mediaId != null) {
     $('#mediaIdPill').textContent = `Media ID ${s.mediaId}`;
   } else if (!s.connected) {
     $('#mediaIdPill').textContent = 'Media ID —';
   }
+  if (!isFitPro || !s.dialWidth || !s.dialHeight) {
+    $('#dialW').readOnly = false;
+    $('#dialH').readOnly = false;
+  }
 }
 
 function updatePushChecklist() {
   const connected = client.connected;
   const imageReady = !!prepared;
-  const idle = !transferring && !client.anyTransferring;
+  const idle = !transferring && !client.anyTransferring && !client.anyPreviewing;
   const map = { conn: connected, image: imageReady, idle };
   for (const [key, ok] of Object.entries(map)) {
     const li = document.querySelector(`[data-check="${key}"]`);
@@ -200,6 +221,8 @@ function updatePushChecklist() {
   const canPush = connected && imageReady && idle;
   $('#btnPush').disabled = !canPush;
   $('#btnPushAll').disabled = !(client.sessionCount >= 2 && imageReady && idle);
+  const isFitPro = client.getSnapshot?.().protocolMode === 'fitpro';
+  $('#btnPushVideo').disabled = !(connected && !!videoPrepared && idle && isFitPro);
 }
 
 function renderMediaList(items) {
@@ -443,6 +466,149 @@ async function pushAll() {
   }
 }
 
+async function rebuildVideoPreview() {
+  const file = $('#videoInput').files?.[0];
+  if (!file) {
+    videoPrepared = null;
+    $('#aviPreview').hidden = true;
+    $('#aviPlaceholder').hidden = false;
+    $('#videoMeta').textContent = 'No video selected.';
+    updatePushChecklist();
+    return;
+  }
+  if (!isSupportedVideoFile(file)) {
+    videoPrepared = null;
+    updatePushChecklist();
+    toast('Unsupported file — use GIF/WebP/APNG or an MP4/MOV/WebM video', 'err');
+    return;
+  }
+  try {
+    const width = Number($('#videoW').value) || 240;
+    const height = Number($('#videoH').value) || 240;
+    const fps = Math.min(30, Math.max(1, Number($('#videoFps').value) || WATCH_VIDEO.fps));
+    const result = await extractFramesForBadge(file, {
+      width,
+      height,
+      fps,
+      maxSeconds: Number($('#videoSeconds').value) || WATCH_VIDEO.maxSeconds,
+      round: $('#videoRound').checked,
+    });
+    videoPrepared = {
+      sources: result.sources,
+      width,
+      height,
+      fps,
+      source: result.source,
+      sourceFrames: result.sourceFrames,
+    };
+    const img = $('#aviPreview');
+    img.src = result.previewUrl;
+    img.hidden = false;
+    $('#aviPlaceholder').hidden = true;
+    $('#aviDial').classList.toggle('round', $('#videoRound').checked);
+    const src =
+      result.source === 'animated-image'
+        ? `${result.sourceFrames ?? result.sources.length}-frame image`
+        : `${result.duration ? `${result.duration.toFixed(1)}s` : 'video'}`;
+    $('#videoMeta').textContent =
+      `${file.name} (${src}) → ${result.sources.length} frames @ ${fps} fps · ${width}×${height}`;
+    updatePushChecklist();
+  } catch (e) {
+    videoPrepared = null;
+    updatePushChecklist();
+    toast(e.message, 'err');
+    log({ msg: `Video prepare: ${e.message}`, level: 'err' });
+  }
+}
+
+async function queryVideoFreeSpace() {
+  if (!client.connected) {
+    toast('Connect a badge first', 'err');
+    return null;
+  }
+  try {
+    const { bytes, raw } = await client.dialRemainSpace();
+    const txt = bytes == null ? `raw ${raw}` : formatBytes(bytes);
+    $('#videoMeta').textContent = `Badge free dial space: ${txt}`;
+    return bytes;
+  } catch (e) {
+    log({ msg: `Free-space query: ${e.message}`, level: 'warn' });
+    return null;
+  }
+}
+
+async function pushVideo() {
+  if (!client.connected) {
+    toast('Connect a badge first', 'err');
+    return;
+  }
+  if (!videoPrepared) {
+    toast('Choose a video or GIF first', 'err');
+    return;
+  }
+  if (client.getSnapshot?.().protocolMode !== 'fitpro') {
+    toast('Video push is FitPro-dial only for now', 'err');
+    return;
+  }
+  const bar = $('#aviBar');
+  const wrap = $('#aviProgress');
+  wrap.hidden = false;
+  bar.style.width = '0%';
+  transferring = true;
+  updatePushChecklist();
+  try {
+    const target = client.active;
+    const userMaxKb = Number($('#videoMaxKb').value) || Math.round(WATCH_VIDEO.maxBytes / 1024);
+    let maxBytes = userMaxKb * 1024;
+    // If the badge tells us its free dial space, never exceed it (keep a margin).
+    const free = await queryVideoFreeSpace();
+    if (free != null) {
+      const margin = free >= 5120 ? 5120 : 0;
+      maxBytes = Math.min(maxBytes, free - margin - 4);
+    }
+    if (maxBytes <= 0) throw new Error('The badge has no free dial space');
+    const fit = await fitAvi(videoPrepared.sources, {
+      width: videoPrepared.width,
+      height: videoPrepared.height,
+      fps: videoPrepared.fps,
+      maxBytes,
+    });
+    const avi = fit.avi;
+    log({
+      msg:
+        `AVI ready — ${formatBytes(avi.length)} (budget ${Math.round(maxBytes / 1024)} KB) · ` +
+        `${fit.frameCount} frames @ ${fit.fps} fps q${fit.quality} ` +
+        `${videoPrepared.width}×${videoPrepared.height}`,
+      level: 'info',
+    });
+    if (avi.length > maxBytes) {
+      throw new Error(`Video exceeds the ${formatBytes(maxBytes)} budget. Shorten it or free dial space.`);
+    }
+    const result = await target.transferFile(avi, {
+      fileType: FileType.VIDEO,
+      dialType: 1, // AVI (WatchTheme3 fileType 1)
+      onProgress: (pct) => {
+        bar.style.width = `${pct}%`;
+      },
+    });
+    toast(`Video pushed to ${client.name || 'badge'} (dial31 AVI)`, 'ok');
+    log({
+      msg: `Video push complete → ${client.name || result.sessionId} ${formatBytes(avi.length)}`,
+      level: 'ok',
+    });
+    $('#mediaIdPill').textContent = 'FitPro dial31 (AVI)';
+  } catch (e) {
+    toast(e.message, 'err');
+    log({ msg: e.message, level: 'err' });
+  } finally {
+    transferring = false;
+    updatePushChecklist();
+    setTimeout(() => {
+      wrap.hidden = true;
+    }, 900);
+  }
+}
+
 function clearActiveUi() {
   renderSnapshot({
     name: null,
@@ -464,7 +630,6 @@ function clearActiveUi() {
 function bind() {
   $('#btnConnect').addEventListener('click', () => connect(false));
   $('#btnConnectAny').addEventListener('click', () => connect(true));
-  $('#btnAddBadge').addEventListener('click', () => connect(false));
   $('#btnDisconnect').addEventListener('click', () =>
     client.disconnect().then(() => toast('Disconnected', 'ok')),
   );
@@ -491,6 +656,15 @@ function bind() {
   $('#roundMask').addEventListener('change', () => rebuildPreview());
   $('#btnPush').addEventListener('click', () => pushImage());
   $('#btnPushAll').addEventListener('click', () => pushAll());
+  $('#btnPickVideo').addEventListener('click', () => $('#videoInput').click());
+  $('#videoInput').addEventListener('change', () => rebuildVideoPreview());
+  $('#videoW').addEventListener('change', () => rebuildVideoPreview());
+  $('#videoH').addEventListener('change', () => rebuildVideoPreview());
+  $('#videoFps').addEventListener('change', () => rebuildVideoPreview());
+  $('#videoSeconds').addEventListener('change', () => rebuildVideoPreview());
+  $('#videoRound').addEventListener('change', () => rebuildVideoPreview());
+  $('#btnPushVideo').addEventListener('click', () => pushVideo());
+  $('#btnVideoFreeSpace').addEventListener('click', () => queryVideoFreeSpace());
   $('#btnMediaList').addEventListener('click', () =>
     client.requestMediaList().catch((e) => {
       toast(e.message, 'err');
@@ -546,6 +720,10 @@ function bind() {
       renderMediaList(e.detail.items);
     }
   });
+  client.addEventListener('preview', () => {
+    renderSnapshot();
+    updatePushChecklist();
+  });
 }
 
 function initSupport() {
@@ -554,7 +732,6 @@ function initSupport() {
     setPill($('#blePill'), 'Needs HTTPS (or localhost)', 'err');
     $('#btnConnect').disabled = true;
     $('#btnConnectAny').disabled = true;
-    $('#btnAddBadge').disabled = true;
     log({
       msg: 'Insecure context — Web Bluetooth is blocked. Use GitHub Pages HTTPS or localhost.',
       level: 'err',
@@ -567,7 +744,6 @@ function initSupport() {
     setPill($('#blePill'), 'Web Bluetooth unavailable', 'err');
     $('#btnConnect').disabled = true;
     $('#btnConnectAny').disabled = true;
-    $('#btnAddBadge').disabled = true;
   }
 }
 
@@ -608,6 +784,7 @@ async function initBuildMeta() {
 
 bind();
 bindAdvanced({ client, log, toast, $ });
+bindExtras({ client, log, toast, $ });
 initSupport();
 initBuildMeta();
 syncConnectionChrome();

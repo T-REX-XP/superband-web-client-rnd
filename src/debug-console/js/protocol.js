@@ -415,3 +415,108 @@ export function describePacket(pkt) {
       : '';
   return `${pkt.moduleName}.${pkt.commandName} payload=${pkt.payload.length}B${errHint} | ${toHex(pkt.raw)}`;
 }
+
+// ── FitPro / live-preview helpers (parity with the manager client) ───────────
+// Legacy MyWatch frames (`SendData`) and the product 0x27 realtime preview.
+
+export const FitProModule = {
+  Setting: 0x12,
+  Binding: 0x13,
+  Sport: 0x15,
+  DeviceControl: 0x1c,
+  DeviceReset: 0x1d,
+  Dial: 0x1f,
+  DialRead: 0x20,
+  Preview: 0x27,
+};
+
+export const SettingKey = {
+  SyncTime: 1,
+  StepTarget: 3,
+  UserInfo: 4,
+  FindMe: 11,
+  TakePhoto: 12,
+  Language: 21,
+  EnterOtaMode: 25,
+  Shutdown: 0xfd,
+};
+
+/** CD | lenBE | module | 01 | key | payloadLenBE | payload */
+export function buildFitProFrame(moduleId, key, payload = new Uint8Array(0)) {
+  const n = payload.length;
+  const out = new Uint8Array(8 + n);
+  out[0] = 0xcd;
+  out[1] = ((n + 5) >> 8) & 0xff;
+  out[2] = (n + 5) & 0xff;
+  out[3] = moduleId & 0xff;
+  out[4] = 0x01;
+  out[5] = key & 0xff;
+  out[6] = (n >> 8) & 0xff;
+  out[7] = n & 0xff;
+  if (n) out.set(payload, 8);
+  return out;
+}
+
+export function buildSyncTime(date = new Date()) {
+  const v =
+    (((date.getFullYear() - 2000) & 0x3f) << 26) |
+    (((date.getMonth() + 1) & 0x0f) << 22) |
+    ((date.getDate() & 0x1f) << 17) |
+    ((date.getHours() & 0x1f) << 12) |
+    ((date.getMinutes() & 0x3f) << 6) |
+    (date.getSeconds() & 0x3f);
+  const u = v >>> 0;
+  return buildFitProFrame(
+    FitProModule.Setting,
+    SettingKey.SyncTime,
+    Uint8Array.of((u >>> 24) & 0xff, (u >>> 16) & 0xff, (u >>> 8) & 0xff, u & 0xff),
+  );
+}
+
+export function buildFindDevice(on = true) {
+  return buildFitProFrame(FitProModule.Setting, SettingKey.FindMe, Uint8Array.of(on ? 1 : 0));
+}
+
+export function buildDeviceControl(key) {
+  return buildFitProFrame(FitProModule.DeviceControl, key);
+}
+
+export function buildDeviceReset() {
+  return Uint8Array.of(0xcd, 0x00, 0x02, FitProModule.DeviceReset, 0x01);
+}
+
+export const PREVIEW = {
+  PRODUCT_ID: 0x27,
+  DEFAULT_WIDTH: 240,
+  DEFAULT_HEIGHT: 296,
+  IMAGE_START: Uint8Array.of(0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff),
+  IMAGE_END: Uint8Array.of(0xff, 0xee, 0xdd, 0xcc, 0xbb, 0xaa),
+};
+
+export function buildPreviewStart() {
+  return Uint8Array.of(0xcd, 0x00, 0x05, 0x27, 0x01, 0x00, 0x00, 0x00, 0x00);
+}
+
+export function buildPreviewEndResponse(status = 0) {
+  return Uint8Array.of(0xcd, 0x00, 0x06, 0x27, 0x01, 0x01, 0x00, 0x01, status & 0xff);
+}
+
+export function buildPreviewStop() {
+  const out = new Uint8Array(6 + 4 + 6);
+  out.set(PREVIEW.IMAGE_START, 0);
+  out.set(PREVIEW.IMAGE_END, 10);
+  return out;
+}
+
+export function buildPreviewFrame(jpeg) {
+  const n = jpeg.length;
+  const out = new Uint8Array(6 + 4 + n + 6);
+  out.set(PREVIEW.IMAGE_START, 0);
+  out[6] = (n >>> 24) & 0xff;
+  out[7] = (n >>> 16) & 0xff;
+  out[8] = (n >>> 8) & 0xff;
+  out[9] = n & 0xff;
+  out.set(jpeg, 10);
+  out.set(PREVIEW.IMAGE_END, 10 + n);
+  return out;
+}
