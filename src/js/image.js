@@ -3,6 +3,7 @@
  */
 
 import { encodeBaselineJpeg444, describeJpeg } from './jpeg444.js';
+import { encodeBr35Etc2, encodePackedRgb565 } from './jieli-image.js';
 
 export const DEFAULT_DIAL = { width: 360, height: 360 };
 
@@ -51,7 +52,7 @@ export function loadImage(blob) {
 /**
  * Cover-crop into dial size and export bytes for badge push.
  * @param {CanvasImageSource} source
- * @param {{width?:number,height?:number,quality?:number,round?:boolean,format?:'rgb565'|'jpeg444'}} opts
+ * @param {{width?:number,height?:number,quality?:number,round?:boolean,format?:'rgb565'|'jieli-res'|'br35-etc2'|'jpeg444'}} opts
  * @returns {Promise<{blob: Blob, bytes: Uint8Array, width: number, height: number, previewUrl: string, format: string}>}
  */
 export async function prepareDialImage(source, {
@@ -59,7 +60,6 @@ export async function prepareDialImage(source, {
   height = DEFAULT_DIAL.height,
   quality = 0.5,
   round = false,
-  /** FitPro BJ/DG default: RGB565 type 0. JPEG only when dial algorithm === 4. */
   format = 'rgb565',
 } = {}) {
   const canvas = document.createElement('canvas');
@@ -111,9 +111,12 @@ export async function prepareDialImage(source, {
     return { blob, bytes, width, height, previewUrl, format: 'jpeg444', jpeg: meta };
   }
 
-  const bytes = encodeRgb565(imageData, { littleEndian: true });
+  let bytes;
+  if (format === 'br35-etc2') bytes = encodeBr35Etc2(imageData.data, width, height);
+  else if (format === 'jieli-res') bytes = encodePackedRgb565(imageData.data, width, height);
+  else bytes = encodeRgb565(imageData);
   const blob = new Blob([bytes], { type: 'application/octet-stream' });
-  return { blob, bytes, width, height, previewUrl, format: 'rgb565' };
+  return { blob, bytes, width, height, previewUrl, format };
 }
 
 /**

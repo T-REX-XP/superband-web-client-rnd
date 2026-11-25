@@ -66,6 +66,7 @@ function renderDeviceChips() {
     main.addEventListener('click', () => {
       try {
         client.setActive(s.id);
+        rebuildPreview();
         toast(`Active: ${client.name || s.id}`, 'ok');
         if (client.getSnapshot().protocolMode === 'baji') {
           client.requestMediaList().catch((e) => {
@@ -256,7 +257,7 @@ async function connect(acceptAll) {
     } else if (snap.protocolMode === 'fitpro') {
       log({ msg: 'FitPro badge — media library skipped (use Push for dial31 upload)', level: 'info' });
     }
-    // Re-encode for protocol (FitPro RGB565 vs Baji/alg4 JPEG).
+    // Re-encode for the active badge's image format.
     if ($('#imageInput').files?.length) await rebuildPreview();
   } catch (e) {
     syncConnectionChrome();
@@ -269,6 +270,24 @@ async function connect(acceptAll) {
   }
 }
 
+function imageSettings() {
+  return {
+    width: Number($('#dialW').value) || DEFAULT_DIAL.width,
+    height: Number($('#dialH').value) || DEFAULT_DIAL.height,
+    round: $('#roundMask').checked,
+  };
+}
+
+function prepareForBadge(file, snap, settings) {
+  const useJpeg = snap.protocolMode === 'baji' || snap.dialAlgorithm === 4;
+  return prepareFileForBadge(file, {
+    ...settings,
+    width: snap.dialWidth || settings.width,
+    height: snap.dialHeight || settings.height,
+    format: useJpeg ? 'jpeg444' : snap.dialAlgorithm === 3 ? 'br35-etc2' : 'jieli-res',
+  });
+}
+
 async function rebuildPreview() {
   const file = $('#imageInput').files?.[0];
   if (!file) {
@@ -277,22 +296,14 @@ async function rebuildPreview() {
     return;
   }
   try {
-    // BJ/DG FitPro: RGB565 dial type 0. Baji / algorithm-4 JPEG only when needed.
-    const snap = client.getSnapshot();
-    const useJpeg = snap.protocolMode === 'baji' || snap.dialAlgorithm === 4;
-    prepared = await prepareFileForBadge(file, {
-      width: Number($('#dialW').value) || DEFAULT_DIAL.width,
-      height: Number($('#dialH').value) || DEFAULT_DIAL.height,
-      quality: 0.5,
-      round: $('#roundMask').checked,
-      format: useJpeg ? 'jpeg444' : 'rgb565',
-    });
+    prepared = await prepareForBadge(file, client.getSnapshot(), imageSettings());
     const img = $('#dialPreview');
     img.src = prepared.previewUrl;
     img.hidden = false;
     $('#dialPlaceholder').hidden = true;
     $('#dial').classList.toggle('round', $('#roundMask').checked);
-    const fmtLabel = prepared.format === 'jpeg444' ? 'JPEG 4:4:4' : 'RGB565';
+    const formatLabels = { jpeg444: 'JPEG 4:4:4', 'br35-etc2': 'BR35 ETC2', 'jieli-res': 'Packed RGB565' };
+    const fmtLabel = formatLabels[prepared.format];
     $('#imageMeta').textContent =
       `${file.name} → ${prepared.width}×${prepared.height} ${fmtLabel} · ${formatBytes(prepared.bytes.length)}`;
     updatePushChecklist();
@@ -321,7 +332,12 @@ async function pushImage() {
   updatePushChecklist();
   try {
     const functionType = Number($('#functionType').value) || FunctionType.BACKGROUND;
-    const result = await client.transferFile(prepared.bytes, {
+    const target = client.getSnapshot();
+    const image = await prepareForBadge($('#imageInput').files[0], target, imageSettings());
+    if (client.getSnapshot().sessionId !== target.sessionId) {
+      throw new Error('The active badge changed during image preparation. Push again.');
+    }
+    const result = await client.transferFile(image.bytes, {
       fileType: FileType.IMAGE,
       functionType,
       allocateId: $('#allocMedia').checked,
@@ -379,7 +395,11 @@ async function pushAll() {
   });
   try {
     const functionType = Number($('#functionType').value) || FunctionType.BACKGROUND;
-    const results = await client.transferFileToAll(prepared.bytes, {
+    const file = $('#imageInput').files[0];
+    const settings = imageSettings();
+    const results = await client.transferFileToAll(async (snap) => {
+      return (await prepareForBadge(file, snap, settings)).bytes;
+    }, {
       fileType: FileType.IMAGE,
       functionType,
       allocateId: $('#allocMedia').checked,

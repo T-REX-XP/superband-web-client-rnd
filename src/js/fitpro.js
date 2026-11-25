@@ -44,7 +44,6 @@ export const FitPro = {
   /** gh3 countdown: 15s total, 5s ticks; status poll when remaining ≤ 10s */
   ACK_TIMEOUT_MS: 15000,
   ACK_TICK_MS: 5000,
-  ACK_POLL_REMAINING_MS: 10000,
 };
 
 /** GAP names that speak FitPro dial / crash on Baji media + dial-info probes. */
@@ -132,7 +131,7 @@ export function buildDialFileBlob(imageBytes) {
 }
 
 /**
- * Start payload for WatchTheme3 custom-background JPEG push.
+ * Start payload for WatchTheme3 custom-background push.
  * @param {{ dialId?: number, dialType?: number, fileSize: number, flags?: number }} opts
  */
 export function buildDialStartPayload({
@@ -200,25 +199,24 @@ export function buildDialFinish(fileBlob) {
  * @returns {object|null}
  */
 export function parseDialInfo(payload) {
-  if (!payload || payload.length < 6) return null;
+  if (!payload || payload.length < 10) return null;
   try {
     const screenType = payload[0] & 0xff;
     const grade = payload[1] & 0xff;
     const width = getU16BE(payload, 2);
     const height = getU16BE(payload, 4);
+    if (!width || !height) return null;
     let o = 6;
     const mchLen = payload[o++] & 0xff;
-    if (o + mchLen > payload.length) return null;
+    if (o + mchLen >= payload.length) return null;
     const mchModel = new TextDecoder().decode(payload.slice(o, o + mchLen));
     o += mchLen;
     const mainLen = payload[o++] & 0xff;
-    if (o + mainLen > payload.length) return null;
+    if (o + mainLen + 2 > payload.length) return null;
     const mainModel = new TextDecoder().decode(payload.slice(o, o + mainLen));
     o += mainLen;
-    let config = 0;
-    let algorithm = 0;
-    if (o < payload.length) config = payload[o] & 0xff;
-    if (o + 1 < payload.length) algorithm = payload[o + 1] & 0xff;
+    const config = payload[o];
+    const algorithm = payload[o + 1];
     // versionCode / customer / pictureNums / themeVersion / shortPkg — best-effort
     let shortPkg = 0;
     let themeVersion = 0;
@@ -317,7 +315,8 @@ export function describeFitProDial(info) {
 export function dialChunkSize(info, maxWriteLength = 512) {
   const fromDev =
     info?.shortPkgLength > 0 ? Number(info.shortPkgLength) : FitPro.ANDROID_DEFAULT_CHUNK;
-  const attCap = Math.max(20, (Number(maxWriteLength) || 512) - FitPro.DATA_FRAME_OVERHEAD);
+  const attCap = (Number(maxWriteLength) || 512) - FitPro.DATA_FRAME_OVERHEAD;
+  if (attCap < 1) throw new RangeError('GATT write limit is too small for dial data');
   const want = Number.isFinite(fromDev) && fromDev >= 1 ? fromDev : FitPro.ANDROID_DEFAULT_CHUNK;
   return Math.min(want, attCap);
 }
