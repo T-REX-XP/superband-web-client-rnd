@@ -159,6 +159,7 @@ Details: [tools/README.md](tools/README.md) · [Firmware OTA](docs/protocol/ota-
 | [Dial upload](docs/protocol/dial-upload.md) | FitPro dial31 picture push (BJ-1) |
 | [Media](docs/protocol/media.md) | IDs, list, delete |
 | [Firmware OTA](docs/protocol/ota-firmware.md) | JieLi OTA catalog + zip URLs + send-ota |
+| [BJ-1 Bluetooth recovery](docs/bj1-recovery.md) | Stock OTA for a BJ-1 stuck at the splash screen |
 | [Security research](docs/protocol/security.md) | OTA / UART / CDN risk findings |
 | [Firmware hardware](docs/protocol/firmware-hw.md) | AC707N SoC / peripherals from UFW |
 | [Firmware contract](docs/protocol/firmware-contract.md) | Clean-room on-device contract for open FW |

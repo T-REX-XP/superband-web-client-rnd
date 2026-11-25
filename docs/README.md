@@ -20,6 +20,7 @@ Documentation for the SuperBand electronic badge BLE stack from RnD investigatio
 | [Command reference](protocol/commands.md) | All modules, opcodes, types, error codes |
 | [Packet examples](protocol/examples.md) | Hex dumps of real frames |
 | [Firmware OTA](protocol/ota-firmware.md) | JieLi OTA check API, DG01 / BJ-1 / LJ733 zip URLs |
+| [BJ-1 Bluetooth recovery](bj1-recovery.md) | Recover a BJ-1 stuck at the splash screen after a picture upload |
 | [Security research](protocol/security.md) | OTA risks, public CDN, UART auth gaps, backdoor notes |
 | [Firmware hardware](protocol/firmware-hw.md) | SoC / flash / touch / GPU findings from UFW analysis |
 | [Firmware contract](protocol/firmware-contract.md) | Clean-room FW host-visible contract (dial31 + Stage 2) |

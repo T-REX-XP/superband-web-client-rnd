@@ -123,6 +123,7 @@ Do **not** flash a zip meant for another catalog product (`LJ755`, glass, etc.) 
 
 ## Related docs
 
+- [BJ-1 Bluetooth recovery](../bj1-recovery.md) — verified two-pass stock reinstall for a splash-screen boot loop
 - [Security research](security.md) — public CDN, hardcoded token, UART/USB risks
 - [Firmware hardware](firmware-hw.md) — AC707N SoC, CST816D, flash map
 - [GATT](gatt.md) — `AE00` / DIS UUIDs
